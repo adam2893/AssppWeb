@@ -37,7 +37,12 @@ COPY --from=backend-build /app/backend/dist ./dist
 COPY backend/package*.json ./
 # Native modules (e.g. @node-rs/crc32 via yauzl-promise) ship prebuilt napi
 # binaries per platform; installing here picks the target arch automatically.
-RUN npm ci --omit=dev && npm cache clean --force
+# --ignore-scripts skips bufferutil's node-gyp fallback: it publishes no
+# linux-arm64 prebuild and is a hard-but-unused dependency of
+# @mercuryworkshop/wisp-js, so compiling it would require a toolchain this
+# slim runtime image deliberately omits. @node-rs/crc32 resolves its musl
+# prebuild from optionalDependencies and needs no install script.
+RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 COPY --from=frontend-build /app/frontend/dist ./public
 COPY --from=sap-assets /out /opt/asspp/sap-assets
 RUN mkdir -p /data/packages
