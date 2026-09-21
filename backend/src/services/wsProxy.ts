@@ -9,6 +9,8 @@ wisp.options.hostname_whitelist = [
   /^init\.itunes\.apple\.com$/,
   /^p\d+-buy\.itunes\.apple\.com$/,
   /^downloaddispatch\.itunes\.apple\.com$/,
+  /^s\.mzstatic\.com$/, // Required for setupCert.plist
+  /^[\w-]+\.mzstatic\.com$/, // Broader CDN coverage
 ];
 wisp.options.port_whitelist = [443];
 wisp.options.allow_direct_ip = false;
