@@ -129,6 +129,11 @@ BuildTools/Package.resolved
 # Docker data directory
 /data/
 
+# Backend local data dir: DATA_DIR defaults to ./data, which resolves to
+# backend/data/ when the server or the test suite runs from backend/.
+# downloadManager mkdirs it at import, so any backend test run creates it.
+backend/data/
+
 # Developer-specific xcconfig (required but gitignored)
 Configuration/Developer.xcconfig
 

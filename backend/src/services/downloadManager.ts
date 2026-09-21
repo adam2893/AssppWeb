@@ -390,6 +390,13 @@ export function createTask(
   sinfs: Sinf[],
   iTunesMetadata?: string,
 ): DownloadTask {
+  // Validate sinfs is an array (reject null/undefined/non-array)
+  // Empty arrays are allowed: they mean no injection occurs and the
+  // stored file remains Apple's original CDN bytes (raw-copy case).
+  if (!Array.isArray(sinfs)) {
+    throw new Error("sinfs must be an array");
+  }
+
   // Validate download URL
   validateDownloadURL(downloadURL);
 

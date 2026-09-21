@@ -41,6 +41,7 @@ export function useDownloads() {
     })();
     return () => {
       cancelled = true;
+      useDownloadsStore.getState().destroy();
     };
   }, [accounts, setAccountHashes, fetchTasks]);
 
