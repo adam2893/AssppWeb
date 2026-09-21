@@ -1,4 +1,13 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeAll,
+  afterAll,
+  beforeEach,
+  afterEach,
+} from "vitest";
 import express from "express";
 import request from "supertest";
 import http from "http";
@@ -87,6 +96,21 @@ describe("SSE progress endpoint integration", () => {
   const validToken = "valid-token";
 
   let taskId: string;
+
+  // POST /api/downloads below starts a REAL download from
+  // https://valid.apple.com/test.ipa. That made this file flake intermittently
+  // (a slow/unreachable host produced a file-level collection failure).
+  // Stub fetch so the suite never touches the network. The SSE request itself
+  // uses http.get, not fetch, so it is unaffected.
+  beforeAll(() => {
+    vi.spyOn(globalThis, "fetch").mockRejectedValue(
+      new Error("network disabled in tests"),
+    );
+  });
+
+  afterAll(() => {
+    vi.restoreAllMocks();
+  });
 
   beforeEach(async () => {
     // Create a download task via the API so we have something to subscribe to
