@@ -50,7 +50,7 @@ export function useDownloadAction() {
       // Settings fetch failed — backend will still enforce the limit
     }
 
-    const { output, updatedCookies } = await getDownloadInfo(
+    const { output, updatedCookies, unlicensed } = await getDownloadInfo(
       account,
       app,
       versionId,
@@ -73,6 +73,17 @@ export function useDownloadAction() {
       "info",
       t("toast.title.downloadStarted"),
     );
+
+    if (unlicensed) {
+      // The download response carried no sinf data, so the stored IPA keeps
+      // Apple's original bytes with no FairPlay injection and may not be
+      // installable. This must be surfaced rather than swallowed: previously
+      // the flag was discarded and the user got a plain success toast.
+      // NOTE: ToastType has no "warning" today, so this uses "info" with the
+      // existing localized string. A dedicated warning treatment is a design
+      // decision deferred to the Phase 3b UI pass.
+      addToast(t("errors.download.noSinf"), "info");
+    }
   }
 
   async function acquireLicense(account: Account, app: Software) {

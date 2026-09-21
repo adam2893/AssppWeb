@@ -182,6 +182,14 @@ export function redownloadEndpoint(deviceId: string): StoreDownloadEndpoint {
   };
 }
 
+export function updateProductEndpoint(deviceId: string): StoreDownloadEndpoint {
+  return {
+    host: "downloaddispatch.itunes.apple.com",
+    path: `/up/updateProduct?guid=${deviceId}`,
+    externalVersionIdKey: "appExtVrsId",
+  };
+}
+
 export function purchaseAPIHost(pod?: string): string {
   if (pod) return `p${pod}-buy.itunes.apple.com`;
   return "buy.itunes.apple.com";
