@@ -74,7 +74,7 @@ export async function inject(
   }
 }
 
-async function streamToBuffer(stream: Readable): Promise<Buffer> {
+export async function streamToBuffer(stream: Readable): Promise<Buffer> {
   const chunks: Buffer[] = [];
   for await (const chunk of stream) {
     chunks.push(chunk as Buffer);
@@ -190,7 +190,15 @@ async function addFilesToZip(
   }
 }
 
-function parsePlistBuffer(data: Buffer): Record<string, unknown> | null {
+/**
+ * Parse a plist that may be EITHER binary or XML.
+ *
+ * App Store IPAs commonly ship a BINARY Info.plist (Xcode's Release default is
+ * PLIST_FILE_OUTPUT_FORMAT=binary), so an XML-only parser reports a bogus
+ * "wrong platform" for a perfectly valid package. Exported so platformValidator
+ * shares this one implementation rather than re-deriving it.
+ */
+export function parsePlistBuffer(data: Buffer): Record<string, unknown> | null {
   // Try binary plist first
   try {
     const parsed = bplistParser.parseBuffer(data);

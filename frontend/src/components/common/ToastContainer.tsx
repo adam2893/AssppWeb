@@ -6,12 +6,24 @@ const iconBg: Record<ToastType, string> = {
     'bg-green-500/10 text-green-600 dark:bg-green-400/10 dark:text-green-400',
   error: 'bg-red-500/10 text-red-600 dark:bg-red-400/10 dark:text-red-400',
   info: 'bg-blue-500/10 text-blue-600 dark:bg-blue-400/10 dark:text-blue-400',
+  warning:
+    'bg-amber-500/10 text-amber-600 dark:bg-amber-400/10 dark:text-amber-400',
 };
 
 const titleColor: Record<ToastType, string> = {
   success: 'text-green-700 dark:text-green-300',
   error: 'text-red-700 dark:text-red-300',
   info: 'text-blue-700 dark:text-blue-300',
+  warning: 'text-amber-700 dark:text-amber-300',
+};
+
+/**
+ * Warnings carry a left accent bar in addition to the amber palette and the
+ * triangle icon. Together these three cues (icon shape, position, colour) keep
+ * the warning distinct from info and error even for colour-blind users.
+ */
+const accentBar: Partial<Record<ToastType, string>> = {
+  warning: 'border-l-[3px] border-l-amber-400 dark:border-l-amber-500',
 };
 
 const icons: Record<ToastType, ReactNode> = {
@@ -66,6 +78,23 @@ const icons: Record<ToastType, ReactNode> = {
       />
     </svg>
   ),
+  warning: (
+    <svg
+      aria-hidden="true"
+      focusable="false"
+      className="h-5 w-5"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M12 9v4m0 4h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+      />
+    </svg>
+  ),
 };
 
 export default function ToastContainer() {
@@ -99,7 +128,10 @@ export default function ToastContainer() {
             role={toast.type === 'error' ? 'alert' : 'status'}
             aria-live={toast.type === 'error' ? 'assertive' : 'polite'}
             aria-atomic="true"
-            className="animate-toast-in pointer-events-auto flex w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] shrink-0 items-start gap-3 rounded-[20px] border border-gray-200/80 bg-white/95 p-3 shadow-[0_18px_50px_-18px_rgba(15,23,42,0.4)] backdrop-blur-2xl sm:w-auto sm:min-w-[320px] sm:max-w-md dark:border-white/10 dark:bg-gray-900/95 dark:shadow-black/60"
+            data-toast-type={toast.type}
+            className={`animate-toast-in pointer-events-auto flex w-[calc(100vw-2rem)] max-w-[calc(100vw-2rem)] shrink-0 items-start gap-3 rounded-[20px] border border-gray-200/80 bg-white/95 p-3 shadow-[0_18px_50px_-18px_rgba(15,23,42,0.4)] backdrop-blur-2xl sm:w-auto sm:min-w-[320px] sm:max-w-md dark:border-white/10 dark:bg-gray-900/95 dark:shadow-black/60 ${
+              accentBar[toast.type] ?? ''
+            }`}
           >
             <div
               className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] ${iconBg[toast.type]}`}

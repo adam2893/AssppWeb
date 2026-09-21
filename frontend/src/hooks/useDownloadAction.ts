@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { useAccounts } from "./useAccounts";
 import { useToastStore } from "../store/toast";
 import { useDownloadsStore } from "../store/downloads";
+import { useSettingsStore } from "../store/settings";
 import { getDownloadInfo } from "../apple/download";
 import { purchaseApp } from "../apple/purchase";
 import { authenticate } from "../apple/authenticate";
@@ -57,6 +58,7 @@ export function useDownloadAction() {
     );
     await updateAccount({ ...account, cookies: updatedCookies });
     const hash = await accountHash(account);
+    const platform = useSettingsStore.getState().platform;
 
     await apiPost("/api/downloads", {
       software: { ...app, version: output.bundleShortVersionString },
@@ -64,6 +66,7 @@ export function useDownloadAction() {
       downloadURL: output.downloadURL,
       sinfs: output.sinfs,
       iTunesMetadata: output.iTunesMetadata,
+      platform,
     });
 
     fetchTasks();
@@ -79,10 +82,7 @@ export function useDownloadAction() {
       // Apple's original bytes with no FairPlay injection and may not be
       // installable. This must be surfaced rather than swallowed: previously
       // the flag was discarded and the user got a plain success toast.
-      // NOTE: ToastType has no "warning" today, so this uses "info" with the
-      // existing localized string. A dedicated warning treatment is a design
-      // decision deferred to the Phase 3b UI pass.
-      addToast(t("errors.download.noSinf"), "info");
+      addToast(t("errors.download.noSinf"), "warning");
     }
   }
 

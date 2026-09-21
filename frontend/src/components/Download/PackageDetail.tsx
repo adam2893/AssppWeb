@@ -15,6 +15,7 @@ import {
 import { useAccounts } from '../../hooks/useAccounts';
 import { useDownloadAction } from '../../hooks/useDownloadAction';
 import { useDownloads } from '../../hooks/useDownloads';
+import { useSettingsStore } from '../../store/settings';
 import { useToastStore } from '../../store/toast';
 import { listVersions } from '../../apple/versionFinder';
 import { lookupApp } from '../../api/search';
@@ -33,6 +34,7 @@ export default function PackageDetail() {
     useDownloads();
   const { accounts } = useAccounts();
   const { startDownload } = useDownloadAction();
+  const platform = useSettingsStore((s) => s.platform);
   const addToast = useToastStore((state) => state.addToast);
 
   const [checkingUpdate, setCheckingUpdate] = useState(false);
@@ -120,11 +122,11 @@ export default function PackageDetail() {
     setCheckingUpdate(true);
     try {
       const country = storeIdToCountry(account.store) ?? 'US';
-      const app = await lookupApp(bundleID, country);
+      const app = await lookupApp(bundleID, country, platform);
 
       if (app && isNewerVersion(app.version, currentVersion)) {
         setLatestApp(app);
-        const result = await listVersions(account, app);
+        const result = await listVersions(account, app, platform);
         setAvailableVersions(result.versions);
         setSelectedVersion(result.versions[0] || '');
         setShowUpdateModal(true);

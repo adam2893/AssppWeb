@@ -3,8 +3,9 @@ import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import { config, DOWNLOAD_TIMEOUT_MS } from "../config.js";
 import { inject } from "./sinfInjector.js";
+import { validatePlatform } from "./platformValidator.js";
 import { ChunkedDownloader } from "./chunkedDownloader.js";
-import type { DownloadTask, Software, Sinf } from "../types/index.js";
+import type { DownloadTask, Software, Sinf, PlatformId } from "../types/index.js";
 
 const tasks = new Map<string, DownloadTask>();
 const abortControllers = new Map<string, AbortController>();
@@ -83,6 +84,7 @@ function persistTasks() {
       accountHash: t.accountHash,
       downloadURL: "",
       sinfs: [],
+      platform: t.platform,
       status: t.status,
       progress: t.progress,
       speed: t.speed,
@@ -210,6 +212,7 @@ function initOnStartup() {
               accountHash: item.accountHash,
               downloadURL: "",
               sinfs: [],
+              platform: item.platform ?? "iphone",
               status: "completed",
               progress: 100,
               speed: "0 B/s",
@@ -389,6 +392,7 @@ export function createTask(
   downloadURL: string,
   sinfs: Sinf[],
   iTunesMetadata?: string,
+  platform: PlatformId = "iphone",
 ): DownloadTask {
   // Validate sinfs is an array (reject null/undefined/non-array)
   // Empty arrays are allowed: they mean no injection occurs and the
@@ -412,6 +416,7 @@ export function createTask(
     downloadURL,
     sinfs,
     iTunesMetadata,
+    platform,
     status: "pending",
     progress: 0,
     speed: "0 B/s",
@@ -498,6 +503,10 @@ async function startDownload(task: DownloadTask) {
       await inject(task.sinfs, filePath, task.iTunesMetadata);
     }
 
+    // Validate platform after download (and injection if applicable).
+    // Streams only the Info.plist entry, so a multi-GB IPA is not buffered.
+    await validatePlatform(filePath, task.platform);
+
     task.status = "completed";
     task.progress = 100;
 
@@ -528,7 +537,22 @@ async function startDownload(task: DownloadTask) {
       `Download ${task.id} failed:`,
       err instanceof Error ? err.message : err,
     );
-    task.error = "Download failed";
+    task.error = err instanceof Error ? err.message : "Download failed";
+
+    // A failed task must not leave a fully-downloaded package on disk. Cleanup
+    // only reclaims `completed` tasks and orphan-scanning treats any task with a
+    // filePath as known, so without this the file leaks until an explicit
+    // delete. A platform-validation failure happens AFTER a full download, so
+    // this is the normal path for a mismatched package.
+    if (task.filePath) {
+      try {
+        await fs.promises.rm(task.filePath, { force: true });
+      } catch {
+        // Best effort — a leaked file is better than masking the real error.
+      }
+      task.filePath = undefined;
+    }
+
     notifyProgress(task);
   }
 }

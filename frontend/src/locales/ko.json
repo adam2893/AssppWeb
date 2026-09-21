@@ -16,11 +16,18 @@
     "available": "사용 가능한 국가 / 지역",
     "all": "모든 국가 / 지역"
   },
+  "platform": {
+    "label": "플랫폼",
+    "iphone": "iPhone",
+    "ipad": "iPad",
+    "appletv": "tvOS"
+  },
   "nav": {
     "home": "홈",
     "accounts": "계정",
     "search": "검색",
     "downloads": "다운로드",
+    "purchases": "구매 내역",
     "settings": "설정"
   },
   "home": {
@@ -236,6 +243,37 @@
       "updateFailed": "업데이트를 시작하지 못했습니다."
     }
   },
+  "purchases": {
+    "title": "구매 내역",
+    "account": "계정",
+    "refresh": "새로 고침",
+    "refreshing": "새로 고치는 중...",
+    "loading": "구매 내역을 불러오는 중...",
+    "empty": "구매한 앱이 없습니다",
+    "emptyDesc": "이 Apple ID는 아직 앱을 구매하지 않았습니다.",
+    "noAccounts": "계정이 없습니다",
+    "noAccountsDesc": "Apple ID를 추가하면 해당 계정이 보유한 앱을 볼 수 있습니다.",
+    "noAccountsLink": "계정 추가",
+    "authTitle": "로그인이 만료되었습니다",
+    "authDesc": "Apple이 이 계정의 저장된 로그인을 더 이상 허용하지 않아 구매 내역을 불러올 수 없습니다. 다시 인증한 후 계속하세요.",
+    "authAction": "재인증",
+    "errorTitle": "구매 내역을 불러오지 못했습니다",
+    "errorRetry": "다시 시도",
+    "filterPlaceholder": "이름 또는 Bundle ID로 필터링",
+    "filterEmpty": "일치하는 앱이 없습니다",
+    "filterEmptyDesc": "필터 조건에 맞는 구매한 앱이 없습니다.",
+    "count": "앱 {{total}}개",
+    "range": "전체 {{total}}개 중 {{from}}–{{to}}",
+    "prev": "이전",
+    "next": "다음",
+    "unknownDate": "날짜 없음",
+    "platform": {
+      "iphone": "iPhone",
+      "ipad": "iPad",
+      "macos": "macOS",
+      "visionos": "visionOS"
+    }
+  },
   "settings": {
     "title": "설정",
     "language": {
@@ -246,9 +284,9 @@
     "defaults": {
       "title": "기본값",
       "country": "기본 국가 / 지역",
-      "entity": "기본 기기 유형",
       "countryChanged": "기본 국가 / 지역이 업데이트되었습니다",
-      "entityChanged": "기본 기기 유형이 업데이트되었습니다"
+      "platform": "기본 플랫폼",
+      "platformChanged": "기본 플랫폼이 업데이트되었습니다"
     },
     "server": {
       "title": "서버",
@@ -434,8 +472,12 @@
       "missingMetadata": "메타데이터가 없습니다",
       "missingVersion": "필요한 버전 정보가 없습니다",
       "invalidSinf": "잘못된 sinf 항목입니다",
-      "noSinf": "응답에서 sinf를 찾을 수 없습니다",
-      "tooManyRedirects": "리디렉션이 너무 많습니다"
+      "noSinf": "다운로드는 완료되었지만 앱을 설치하는 데 필요한 데이터가 누락되어 이 파일이 설치되지 않을 수 있습니다. 다시 다운로드해 보세요. 그래도 설치되지 않으면 먼저 이 계정으로 이 앱의 라이선스를 받으세요.",
+      "tooManyRedirects": "리디렉션이 너무 많습니다",
+      "missingInfoPlist": "IPA에 Info.plist가 없습니다",
+      "missingSupportedPlatforms": "IPA에 CFBundleSupportedPlatforms가 없습니다",
+      "platformMismatch": "IPA 플랫폼 불일치: 예상 {{expected}}, 실제 {{actual}}",
+      "unsupportedCompression": "지원되지 않는 ZIP 압축 방식: {{method}}"
     },
     "purchase": {
       "paidNotSupported": "유료 앱 구매는 지원되지 않습니다",

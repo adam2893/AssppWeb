@@ -16,7 +16,7 @@ import type { Software } from "../../types";
 
 export default function AddDownload() {
   const { accounts, updateAccount } = useAccounts();
-  const { defaultCountry } = useSettingsStore();
+  const { defaultCountry, platform } = useSettingsStore();
   const { t } = useTranslation();
   const addToast = useToastStore((s) => s.addToast);
   const {
@@ -87,7 +87,7 @@ export default function AddDownload() {
     if (!bundleId.trim()) return;
     setLoadingAction("lookup");
     try {
-      const result = await lookupApp(bundleId.trim(), country);
+      const result = await lookupApp(bundleId.trim(), country, platform);
       if (!result) {
         addToast(t("downloads.add.notFound"), "error");
         return;
@@ -117,7 +117,7 @@ export default function AddDownload() {
     if (!account || !app) return;
     setLoadingAction("versions");
     try {
-      const result = await listVersions(account, app);
+      const result = await listVersions(account, app, platform);
       setVersions(result.versions);
       await updateAccount({ ...account, cookies: result.updatedCookies });
       setStep("versions");

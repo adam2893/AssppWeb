@@ -12,6 +12,7 @@ import {
   sanitizeTaskForResponse,
   validateDownloadURL,
 } from "../services/downloadManager.js";
+import type { PlatformId } from "../types/index.js";
 import {
   getIdParam,
   requireAccountHash,
@@ -78,7 +79,7 @@ async function fetchDownloadSizeBytes(
 
 // Start a new download
 router.post("/downloads", async (req: Request, res: Response) => {
-  const { software, accountHash, downloadURL, sinfs, iTunesMetadata } =
+  const { software, accountHash, downloadURL, sinfs, iTunesMetadata, platform } =
     req.body;
 
   if (!software || !accountHash || !downloadURL || !sinfs) {
@@ -88,6 +89,12 @@ router.post("/downloads", async (req: Request, res: Response) => {
     });
     return;
   }
+
+  // Validate and default platform (backward compatible)
+  const validPlatforms: PlatformId[] = ["iphone", "ipad", "appletv"];
+  const resolvedPlatform: PlatformId = validPlatforms.includes(platform)
+    ? platform
+    : "iphone";
 
   // Validate download URL before creating task
   try {
@@ -132,6 +139,7 @@ router.post("/downloads", async (req: Request, res: Response) => {
       downloadURL,
       sinfs,
       iTunesMetadata,
+      resolvedPlatform,
     );
     res.status(201).json(sanitizeTaskForResponse(task));
   } catch (err) {

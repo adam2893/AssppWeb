@@ -16,11 +16,18 @@
     "available": "可用国家 / 地区",
     "all": "所有国家 / 地区"
   },
+  "platform": {
+    "label": "平台",
+    "iphone": "iPhone",
+    "ipad": "iPad",
+    "appletv": "tvOS"
+  },
   "nav": {
     "home": "首页",
     "accounts": "账号",
     "search": "搜索",
     "downloads": "下载",
+    "purchases": "已购项目",
     "settings": "设置"
   },
   "home": {
@@ -236,6 +243,37 @@
       "updateFailed": "开始更新失败。"
     }
   },
+  "purchases": {
+    "title": "已购项目",
+    "account": "账号",
+    "refresh": "刷新",
+    "refreshing": "刷新中...",
+    "loading": "正在加载已购项目...",
+    "empty": "暂无已购应用",
+    "emptyDesc": "此 Apple ID 尚未购买任何应用。",
+    "noAccounts": "暂无账号",
+    "noAccountsDesc": "添加 Apple ID 后即可查看其已购应用。",
+    "noAccountsLink": "添加账号",
+    "authTitle": "登录已过期",
+    "authDesc": "Apple 已不再接受该账号保存的登录状态，无法加载其已购项目。请重新认证后继续。",
+    "authAction": "重新认证",
+    "errorTitle": "无法加载已购项目",
+    "errorRetry": "重试",
+    "filterPlaceholder": "按名称或 Bundle ID 筛选",
+    "filterEmpty": "没有匹配的应用",
+    "filterEmptyDesc": "没有符合筛选条件的已购应用。",
+    "count": "{{total}} 个应用",
+    "range": "第 {{from}}–{{to}} 项，共 {{total}} 项",
+    "prev": "上一页",
+    "next": "下一页",
+    "unknownDate": "日期未知",
+    "platform": {
+      "iphone": "iPhone",
+      "ipad": "iPad",
+      "macos": "macOS",
+      "visionos": "visionOS"
+    }
+  },
   "settings": {
     "title": "设置",
     "language": {
@@ -246,9 +284,9 @@
     "defaults": {
       "title": "默认设置",
       "country": "默认国家 / 地区",
-      "entity": "默认设备类型",
       "countryChanged": "默认国家 / 地区已更新",
-      "entityChanged": "默认设备类型已更新"
+      "platform": "默认平台",
+      "platformChanged": "默认平台已更新"
     },
     "server": {
       "title": "服务器",
@@ -434,8 +472,12 @@
       "missingMetadata": "缺少元数据",
       "missingVersion": "缺少所需的版本信息",
       "invalidSinf": "无效的 sinf 项目",
-      "noSinf": "响应中未找到 sinf",
-      "tooManyRedirects": "重定向次数过多"
+      "noSinf": "下载已完成，但缺少安装应用所需的部分数据，该文件可能无法安装。请重新下载；如果仍无法安装，请先用该账号获取此应用的许可证。",
+      "tooManyRedirects": "重定向次数过多",
+      "missingInfoPlist": "IPA 不包含 Info.plist",
+      "missingSupportedPlatforms": "IPA 缺少 CFBundleSupportedPlatforms",
+      "platformMismatch": "IPA 平台不匹配：预期 {{expected}}，实际 {{actual}}",
+      "unsupportedCompression": "不支持的 ZIP 压缩方式：{{method}}"
     },
     "purchase": {
       "paidNotSupported": "不支持购买付费应用",

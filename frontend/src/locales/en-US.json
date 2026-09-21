@@ -16,11 +16,18 @@
     "available": "Available Regions",
     "all": "All Regions"
   },
+  "platform": {
+    "label": "Platform",
+    "iphone": "iPhone",
+    "ipad": "iPad",
+    "appletv": "tvOS"
+  },
   "nav": {
     "home": "Home",
     "accounts": "Accounts",
     "search": "Search",
     "downloads": "Downloads",
+    "purchases": "Purchases",
     "settings": "Settings"
   },
   "home": {
@@ -236,6 +243,37 @@
       "updateFailed": "Failed to start update."
     }
   },
+  "purchases": {
+    "title": "Purchase History",
+    "account": "Account",
+    "refresh": "Refresh",
+    "refreshing": "Refreshing...",
+    "loading": "Loading purchase history...",
+    "empty": "No purchased apps",
+    "emptyDesc": "This Apple ID hasn't purchased any apps yet.",
+    "noAccounts": "No accounts yet",
+    "noAccountsDesc": "Add an Apple ID to see the apps it owns.",
+    "noAccountsLink": "Add an account",
+    "authTitle": "Sign-in expired",
+    "authDesc": "Apple no longer accepts the saved sign-in for this account, so its purchases can't be loaded. Re-authenticate to continue.",
+    "authAction": "Re-authenticate",
+    "errorTitle": "Couldn't load purchases",
+    "errorRetry": "Try again",
+    "filterPlaceholder": "Filter by name or bundle ID",
+    "filterEmpty": "No matching apps",
+    "filterEmptyDesc": "No purchased apps match your filter.",
+    "count": "{{total}} apps",
+    "range": "{{from}}–{{to}} of {{total}}",
+    "prev": "Previous",
+    "next": "Next",
+    "unknownDate": "Date unknown",
+    "platform": {
+      "iphone": "iPhone",
+      "ipad": "iPad",
+      "macos": "macOS",
+      "visionos": "visionOS"
+    }
+  },
   "settings": {
     "title": "Settings",
     "language": {
@@ -246,9 +284,9 @@
     "defaults": {
       "title": "Defaults",
       "country": "Default Country / Region",
-      "entity": "Default Entity Type",
       "countryChanged": "Default country/region updated",
-      "entityChanged": "Default device type updated"
+      "platform": "Default Platform",
+      "platformChanged": "Default platform updated"
     },
     "server": {
       "title": "Server",
@@ -434,8 +472,12 @@
       "missingMetadata": "Missing metadata",
       "missingVersion": "Missing required version information",
       "invalidSinf": "Invalid sinf item",
-      "noSinf": "No sinf found in response",
-      "tooManyRedirects": "Too many redirects"
+      "noSinf": "The download finished, but a part needed to install the app was missing. Try downloading it again — if it still won't install, get a license for this app with this account first.",
+      "tooManyRedirects": "Too many redirects",
+      "missingInfoPlist": "IPA does not contain an Info.plist",
+      "missingSupportedPlatforms": "IPA is missing CFBundleSupportedPlatforms",
+      "platformMismatch": "IPA platform mismatch: expected {{expected}}, found {{actual}}",
+      "unsupportedCompression": "Unsupported ZIP compression method: {{method}}"
     },
     "purchase": {
       "paidNotSupported": "Purchasing paid apps is not supported",

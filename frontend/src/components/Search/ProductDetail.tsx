@@ -12,6 +12,7 @@ import {
 } from './productPreview';
 import { useAccounts } from "../../hooks/useAccounts";
 import { useDownloadAction } from "../../hooks/useDownloadAction";
+import { useSearch } from "../../hooks/useSearch";
 import { useToastStore } from '../../store/toast';
 import { lookupApp } from "../../api/search";
 import { storeIdToCountry } from "../../apple/config";
@@ -58,7 +59,8 @@ export default function ProductDetail() {
   useEffect(() => {
     if (!stateApp && appId) {
       setLoading(true);
-      lookupApp(appId, country)
+      const searchPlatform = useSearch.getState().platform;
+      lookupApp(appId, country, searchPlatform || undefined)
         .then((result) => {
           setApp(result);
           setLoading(false);

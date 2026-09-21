@@ -16,11 +16,18 @@
     "available": "利用可能な国 / 地域",
     "all": "すべての国 / 地域"
   },
+  "platform": {
+    "label": "プラットフォーム",
+    "iphone": "iPhone",
+    "ipad": "iPad",
+    "appletv": "tvOS"
+  },
   "nav": {
     "home": "ホーム",
     "accounts": "アカウント",
     "search": "検索",
     "downloads": "ダウンロード",
+    "purchases": "購入済み",
     "settings": "設定"
   },
   "home": {
@@ -236,6 +243,37 @@
       "updateFailed": "アップデートの開始に失敗しました。"
     }
   },
+  "purchases": {
+    "title": "購入履歴",
+    "account": "アカウント",
+    "refresh": "更新",
+    "refreshing": "更新中...",
+    "loading": "購入履歴を読み込み中...",
+    "empty": "購入したアプリはありません",
+    "emptyDesc": "この Apple ID はまだアプリを購入していません。",
+    "noAccounts": "アカウントがありません",
+    "noAccountsDesc": "Apple ID を追加すると、所有するアプリを表示できます。",
+    "noAccountsLink": "アカウントを追加",
+    "authTitle": "サインインの有効期限が切れました",
+    "authDesc": "Apple がこのアカウントの保存済みサインインを受け付けなくなったため、購入履歴を読み込めません。再認証して続行してください。",
+    "authAction": "再認証",
+    "errorTitle": "購入履歴を読み込めませんでした",
+    "errorRetry": "再試行",
+    "filterPlaceholder": "名前または Bundle ID で絞り込む",
+    "filterEmpty": "一致するアプリがありません",
+    "filterEmptyDesc": "絞り込み条件に一致する購入済みアプリはありません。",
+    "count": "{{total}} 件のアプリ",
+    "range": "{{total}} 件中 {{from}}–{{to}} 件",
+    "prev": "前へ",
+    "next": "次へ",
+    "unknownDate": "日付不明",
+    "platform": {
+      "iphone": "iPhone",
+      "ipad": "iPad",
+      "macos": "macOS",
+      "visionos": "visionOS"
+    }
+  },
   "settings": {
     "title": "設定",
     "language": {
@@ -246,9 +284,9 @@
     "defaults": {
       "title": "デフォルト設定",
       "country": "デフォルトの国 / 地域",
-      "entity": "デフォルトのデバイスタイプ",
       "countryChanged": "デフォルトの国 / 地域を更新しました",
-      "entityChanged": "デフォルトのデバイスタイプを更新しました"
+      "platform": "デフォルトのプラットフォーム",
+      "platformChanged": "デフォルトのプラットフォームを更新しました"
     },
     "server": {
       "title": "サーバー",
@@ -434,8 +472,12 @@
       "missingMetadata": "メタデータがありません",
       "missingVersion": "必要なバージョン情報がありません",
       "invalidSinf": "無効な sinf 項目です",
-      "noSinf": "レスポンスに sinf が見つかりません",
-      "tooManyRedirects": "リダイレクトが多すぎます"
+      "noSinf": "ダウンロードは完了しましたが、アプリのインストールに必要なデータが欠けていたため、このファイルはインストールできない可能性があります。もう一度ダウンロードしてください。それでもインストールできない場合は、先にこのアカウントでこのアプリのライセンスを取得してください。",
+      "tooManyRedirects": "リダイレクトが多すぎます",
+      "missingInfoPlist": "IPA に Info.plist が含まれていません",
+      "missingSupportedPlatforms": "IPA に CFBundleSupportedPlatforms がありません",
+      "platformMismatch": "IPA プラットフォーム不一致: 期待 {{expected}}、実際 {{actual}}",
+      "unsupportedCompression": "未対応の ZIP 圧縮方式: {{method}}"
     },
     "purchase": {
       "paidNotSupported": "有料アプリの購入はサポートされていません",

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type ToastType = "success" | "error" | "info";
+export type ToastType = "success" | "error" | "info" | "warning";
 
 export interface Toast {
   id: string;
@@ -15,6 +15,18 @@ interface ToastStore {
   removeToast: (id: string) => void;
 }
 
+/**
+ * How long a toast stays on screen. A warning explains a consequence the user
+ * may need to act on, so it lingers longer than a confirmation. Everything else
+ * keeps the existing 5s lifetime.
+ */
+const TOAST_DURATION_MS: Record<ToastType, number> = {
+  success: 5000,
+  info: 5000,
+  error: 5000,
+  warning: 8000,
+};
+
 let nextId = 0;
 
 export const useToastStore = create<ToastStore>((set) => ({
@@ -26,7 +38,7 @@ export const useToastStore = create<ToastStore>((set) => ({
     }));
     setTimeout(() => {
       set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) }));
-    }, 5000);
+    }, TOAST_DURATION_MS[type]);
   },
   removeToast: (id) =>
     set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) })),

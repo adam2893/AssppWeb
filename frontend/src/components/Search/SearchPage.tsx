@@ -4,16 +4,18 @@ import { useTranslation } from "react-i18next";
 import PageContainer from "../Layout/PageContainer";
 import AppIcon from "../common/AppIcon";
 import CountrySelect from "../common/CountrySelect";
+import PlatformSelector from "../common/PlatformSelector";
 import { useSearch } from "../../hooks/useSearch";
 import { useAccounts } from "../../hooks/useAccounts";
 import { useSettingsStore } from "../../store/settings";
 import { useToastStore } from "../../store/toast";
 import { firstAccountCountry } from "../../utils/account";
 import { countryCodeMap, storeIdToCountry } from "../../apple/config";
+import { DEFAULT_PLATFORM, type PlatformId } from "../../apple/platform";
 
 export default function SearchPage() {
   const { t } = useTranslation();
-  const { defaultCountry, defaultEntity } = useSettingsStore();
+  const { defaultCountry, platform: defaultPlatform } = useSettingsStore();
   const { accounts } = useAccounts();
   const initialCountry = firstAccountCountry(accounts) ?? defaultCountry;
   const addToast = useToastStore((s) => s.addToast);
@@ -21,7 +23,7 @@ export default function SearchPage() {
   const {
     term,
     country,
-    entity,
+    platform: selectedPlatform,
     results,
     loading,
     error,
@@ -37,11 +39,20 @@ export default function SearchPage() {
 
   useEffect(() => {
     if (!country && initialCountry) setSearchParam({ country: initialCountry });
-    if (!entity && defaultEntity) setSearchParam({ entity: defaultEntity });
-  }, [country, initialCountry, entity, defaultEntity, setSearchParam]);
+    if (!selectedPlatform && defaultPlatform) {
+      setSearchParam({ platform: defaultPlatform });
+    }
+  }, [
+    country,
+    initialCountry,
+    selectedPlatform,
+    defaultPlatform,
+    setSearchParam,
+  ]);
 
   const activeCountry = country || initialCountry;
-  const activeEntity = entity || defaultEntity;
+  const activePlatform: PlatformId =
+    selectedPlatform || defaultPlatform || DEFAULT_PLATFORM;
 
   const availableCountryCodes = Array.from(
     new Set(
@@ -60,7 +71,7 @@ export default function SearchPage() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!term.trim()) return;
-    search(term.trim(), activeCountry, activeEntity);
+    search(term.trim(), activeCountry, activePlatform);
   }
 
   return (
@@ -85,23 +96,19 @@ export default function SearchPage() {
             {loading ? t("search.searching") : t("search.button")}
           </button>
         </div>
-        <div className="flex w-full gap-3 overflow-hidden border-t border-gray-100 pt-3 dark:border-gray-800">
+        <div className="flex flex-col gap-3 border-t border-gray-100 pt-3 dark:border-gray-800 sm:flex-row">
           <CountrySelect
             value={activeCountry}
             onChange={(c) => setSearchParam({ country: c })}
             availableCountryCodes={availableCountryCodes}
             allCountryCodes={allCountryCodes}
-            className="w-1/2 truncate border-0 bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-white"
+            className="w-full truncate border-0 bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-white sm:w-1/2"
           />
-          <select
-            value={activeEntity}
-            onChange={(e) => setSearchParam({ entity: e.target.value })}
-            aria-label={t("settings.defaults.entity")}
-            className="min-h-11 w-1/2 truncate rounded-xl border-0 bg-gray-100 px-3 py-2 text-base text-gray-900 focus:ring-2 focus:ring-blue-500/40 dark:bg-gray-800 dark:text-white"
-          >
-            <option value="iPhone">iPhone</option>
-            <option value="iPad">iPad</option>
-          </select>
+          <PlatformSelector
+            value={activePlatform}
+            onChange={(p) => setSearchParam({ platform: p })}
+            className="w-full sm:w-1/2"
+          />
         </div>
       </form>
 
