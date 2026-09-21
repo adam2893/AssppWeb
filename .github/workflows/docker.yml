@@ -1,9 +1,13 @@
 name: Build and Push Docker Image
 
 on:
+  # Any branch push builds AND publishes an image tagged with the branch name,
+  # so a branch can be pulled and run before it is merged. The default branch
+  # additionally gets `latest`.
   push:
-    branches: [main]
+    branches: ["**"]
     tags: ["v*"]
+  # PRs build only (no publish) — see the `push:` gate on the build step.
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -47,6 +51,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
+            type=ref,event=branch
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha,prefix=

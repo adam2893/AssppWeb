@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { useAccounts } from "./useAccounts";
 import { useToastStore } from "../store/toast";
 import { useDownloadsStore } from "../store/downloads";
+import { useSettingsStore } from "../store/settings";
 import { getDownloadInfo } from "../apple/download";
 import { purchaseApp } from "../apple/purchase";
 import { authenticate } from "../apple/authenticate";
@@ -50,13 +51,14 @@ export function useDownloadAction() {
       // Settings fetch failed — backend will still enforce the limit
     }
 
-    const { output, updatedCookies } = await getDownloadInfo(
+    const { output, updatedCookies, unlicensed } = await getDownloadInfo(
       account,
       app,
       versionId,
     );
     await updateAccount({ ...account, cookies: updatedCookies });
     const hash = await accountHash(account);
+    const platform = useSettingsStore.getState().platform;
 
     await apiPost("/api/downloads", {
       software: { ...app, version: output.bundleShortVersionString },
@@ -64,6 +66,7 @@ export function useDownloadAction() {
       downloadURL: output.downloadURL,
       sinfs: output.sinfs,
       iTunesMetadata: output.iTunesMetadata,
+      platform,
     });
 
     fetchTasks();
@@ -73,6 +76,14 @@ export function useDownloadAction() {
       "info",
       t("toast.title.downloadStarted"),
     );
+
+    if (unlicensed) {
+      // The download response carried no sinf data, so the stored IPA keeps
+      // Apple's original bytes with no FairPlay injection and may not be
+      // installable. This must be surfaced rather than swallowed: previously
+      // the flag was discarded and the user got a plain success toast.
+      addToast(t("errors.download.noSinf"), "warning");
+    }
   }
 
   async function acquireLicense(account: Account, app: Software) {

@@ -14,6 +14,7 @@ import {
 import { useDownloads } from "../../hooks/useDownloads";
 import { useAccounts } from "../../hooks/useAccounts";
 import { useDownloadAction } from "../../hooks/useDownloadAction";
+import { useSettingsStore } from "../../store/settings";
 import { useToastStore } from "../../store/toast";
 import { lookupApp } from "../../api/search";
 import { getAccountContext } from "../../utils/toast";
@@ -40,6 +41,7 @@ export default function DownloadList() {
   const addToast = useToastStore((s) => s.addToast);
   const { accounts } = useAccounts();
   const { startDownload } = useDownloadAction();
+  const platform = useSettingsStore((s) => s.platform);
   const previewEnabled = isDownloadPreviewEnabled(location.search);
   const displayTasks = previewEnabled ? previewDownloadTasks : tasks;
 
@@ -154,7 +156,7 @@ export default function DownloadList() {
         if (cancelCheckRef.current) break;
 
         const country = storeIdToCountry(account.store) ?? "US";
-        const latestApp = await lookupApp(task.software.bundleID, country);
+        const latestApp = await lookupApp(task.software.bundleID, country, platform);
 
         if (
           latestApp &&

@@ -16,11 +16,18 @@
     "available": "Доступные регионы",
     "all": "Все регионы"
   },
+  "platform": {
+    "label": "Платформа",
+    "iphone": "iPhone",
+    "ipad": "iPad",
+    "appletv": "tvOS"
+  },
   "nav": {
     "home": "Главная",
     "accounts": "Аккаунты",
     "search": "Поиск",
     "downloads": "Загрузки",
+    "purchases": "Покупки",
     "settings": "Настройки"
   },
   "home": {
@@ -236,6 +243,37 @@
       "updateFailed": "Не удалось начать обновление."
     }
   },
+  "purchases": {
+    "title": "История покупок",
+    "account": "Аккаунт",
+    "refresh": "Обновить",
+    "refreshing": "Обновление...",
+    "loading": "Загрузка истории покупок...",
+    "empty": "Нет купленных приложений",
+    "emptyDesc": "Этот Apple ID пока не купил ни одного приложения.",
+    "noAccounts": "Нет аккаунтов",
+    "noAccountsDesc": "Добавьте Apple ID, чтобы увидеть принадлежащие ему приложения.",
+    "noAccountsLink": "Добавить аккаунт",
+    "authTitle": "Сеанс входа истек",
+    "authDesc": "Apple больше не принимает сохраненный вход для этого аккаунта, поэтому историю покупок загрузить нельзя. Обновите сессию, чтобы продолжить.",
+    "authAction": "Обновить сессию",
+    "errorTitle": "Не удалось загрузить покупки",
+    "errorRetry": "Повторить",
+    "filterPlaceholder": "Фильтр по названию или Bundle ID",
+    "filterEmpty": "Нет подходящих приложений",
+    "filterEmptyDesc": "Ни одно купленное приложение не соответствует фильтру.",
+    "count": "Приложений: {{total}}",
+    "range": "{{from}}–{{to}} из {{total}}",
+    "prev": "Назад",
+    "next": "Вперед",
+    "unknownDate": "Дата неизвестна",
+    "platform": {
+      "iphone": "iPhone",
+      "ipad": "iPad",
+      "macos": "macOS",
+      "visionos": "visionOS"
+    }
+  },
   "settings": {
     "title": "Настройки",
     "language": {
@@ -246,9 +284,9 @@
     "defaults": {
       "title": "По умолчанию",
       "country": "Регион / Страна",
-      "entity": "Тип устройства",
       "countryChanged": "Страна / регион по умолчанию обновлены",
-      "entityChanged": "Тип устройства по умолчанию обновлен"
+      "platform": "Платформа по умолчанию",
+      "platformChanged": "Платформа по умолчанию обновлена"
     },
     "server": {
       "title": "Сервер",
@@ -434,8 +472,12 @@
       "missingMetadata": "Отсутствуют метаданные",
       "missingVersion": "Отсутствует необходимая информация о версии",
       "invalidSinf": "Недействительный элемент sinf",
-      "noSinf": "В ответе не найден sinf",
-      "tooManyRedirects": "Слишком много перенаправлений"
+      "noSinf": "Загрузка завершена, но часть данных, необходимых для установки приложения, отсутствует, поэтому этот файл может не установиться. Попробуйте скачать его снова; если установка всё равно не удаётся, сначала получите лицензию на это приложение для этого аккаунта.",
+      "tooManyRedirects": "Слишком много перенаправлений",
+      "missingInfoPlist": "IPA не содержит Info.plist",
+      "missingSupportedPlatforms": "В IPA отсутствует CFBundleSupportedPlatforms",
+      "platformMismatch": "Несоответствие платформы IPA: ожидалось {{expected}}, найдено {{actual}}",
+      "unsupportedCompression": "Неподдерживаемый метод сжатия ZIP: {{method}}"
     },
     "purchase": {
       "paidNotSupported": "Покупка платных приложений не поддерживается",

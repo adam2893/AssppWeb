@@ -5,6 +5,8 @@ import PageContainer from "../Layout/PageContainer";
 import AppIcon from "../common/AppIcon";
 import { useAccounts } from "../../hooks/useAccounts";
 import { useDownloadAction } from "../../hooks/useDownloadAction";
+import { useSearch } from "../../hooks/useSearch";
+import { useSettingsStore } from "../../store/settings";
 import { listVersions } from "../../apple/versionFinder";
 import { storeIdToCountry } from "../../apple/config";
 import { getVersionMetadata } from "../../apple/versionLookup";
@@ -57,7 +59,9 @@ export default function VersionHistory() {
     if (!account || !app) return;
     setLoading(true);
     try {
-      const result = await listVersions(account, app);
+      const searchPlatform = useSearch.getState().platform;
+      const platform = searchPlatform || useSettingsStore.getState().platform;
+      const result = await listVersions(account, app, platform);
       setVersions(result.versions);
       await updateAccount({ ...account, cookies: result.updatedCookies });
     } catch (e) {
@@ -71,7 +75,9 @@ export default function VersionHistory() {
     if (!account || !app || versionMeta[versionId]) return;
     setLoadingMeta((prev) => ({ ...prev, [versionId]: true }));
     try {
-      const result = await getVersionMetadata(account, app, versionId);
+      const searchPlatform = useSearch.getState().platform;
+      const platform = searchPlatform || useSettingsStore.getState().platform;
+      const result = await getVersionMetadata(account, app, versionId, platform);
       setVersionMeta((prev) => ({ ...prev, [versionId]: result.metadata }));
       await updateAccount({ ...account, cookies: result.updatedCookies });
     } catch {

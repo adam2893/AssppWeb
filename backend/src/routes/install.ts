@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import { config } from "../config.js";
 import { getAllTasks } from "../services/downloadManager.js";
+import { getIconForTask } from "../services/iconService.js";
 import { buildManifest, getWhitePng } from "../services/manifestBuilder.js";
 import { getIdParam } from "../utils/route.js";
 
@@ -127,20 +128,50 @@ router.get("/install/:id/payload.ipa", (req: Request, res: Response) => {
   stream.pipe(res);
 });
 
-// Small icon placeholder (57x57)
-router.get("/install/:id/icon-small.png", (_req: Request, res: Response) => {
-  const png = getWhitePng();
-  res.setHeader("Content-Type", "image/png");
-  res.setHeader("Content-Length", png.length);
-  res.send(png);
-});
+// Small icon (120×120) for OTA install display-image
+router.get(
+  "/install/:id/icon-small.png",
+  async (req: Request, res: Response) => {
+    const id = getIdParam(req);
+    const task = getAllTasks().find(
+      (t) => t.id === id && t.status === "completed",
+    );
 
-// Large icon placeholder (512x512)
-router.get("/install/:id/icon-large.png", (_req: Request, res: Response) => {
-  const png = getWhitePng();
-  res.setHeader("Content-Type", "image/png");
-  res.setHeader("Content-Length", png.length);
-  res.send(png);
-});
+    let png: Buffer;
+    if (task) {
+      png = await getIconForTask(task, 120);
+    } else {
+      png = getWhitePng();
+    }
+
+    res.setHeader("Content-Type", "image/png");
+    res.setHeader("Content-Length", png.length);
+    res.setHeader("Cache-Control", "public, max-age=604800, immutable");
+    res.send(png);
+  },
+);
+
+// Large icon (512×512) for OTA install full-size-image
+router.get(
+  "/install/:id/icon-large.png",
+  async (req: Request, res: Response) => {
+    const id = getIdParam(req);
+    const task = getAllTasks().find(
+      (t) => t.id === id && t.status === "completed",
+    );
+
+    let png: Buffer;
+    if (task) {
+      png = await getIconForTask(task, 512);
+    } else {
+      png = getWhitePng();
+    }
+
+    res.setHeader("Content-Type", "image/png");
+    res.setHeader("Content-Length", png.length);
+    res.setHeader("Cache-Control", "public, max-age=604800, immutable");
+    res.send(png);
+  },
+);
 
 export default router;

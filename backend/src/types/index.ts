@@ -24,6 +24,8 @@ export interface Sinf {
   sinf: string; // base64 encoded
 }
 
+export type PlatformId = "iphone" | "ipad" | "appletv";
+
 export interface DownloadTask {
   id: string;
   software: Software;
@@ -31,6 +33,7 @@ export interface DownloadTask {
   downloadURL: string;
   sinfs: Sinf[];
   iTunesMetadata?: string;
+  platform: PlatformId;
   status:
     | "pending"
     | "downloading"

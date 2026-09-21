@@ -2,7 +2,9 @@ import { useState, useEffect, useRef, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import PageContainer from "../Layout/PageContainer";
 import Modal from "../common/Modal";
+import PlatformSelector from "../common/PlatformSelector";
 import { useAccountsStore } from "../../store/accounts";
+import { useSettingsStore } from "../../store/settings";
 import { useToastStore } from "../../store/toast";
 import { apiGet } from "../../api/client";
 import { encryptData, decryptData } from "../../utils/crypto";
@@ -23,21 +25,14 @@ interface ServerInfo {
   downloadThreads?: number;
 }
 
-const entityTypes = [
-  { value: "software", label: "iPhone" },
-  { value: "iPadSoftware", label: "iPad" },
-];
-
 export default function SettingsPage() {
   const { t, i18n } = useTranslation();
   const { accounts, addAccount, updateAccount } = useAccountsStore();
+  const { platform, setPlatform } = useSettingsStore();
   const addToast = useToastStore((s) => s.addToast);
 
   const [country, setCountry] = useState(
     () => localStorage.getItem("asspp-default-country") || "US",
-  );
-  const [entity, setEntity] = useState(
-    () => localStorage.getItem("asspp-default-entity") || "software",
   );
   const [serverInfo, setServerInfo] = useState<ServerInfo | null>(null);
 
@@ -57,10 +52,6 @@ export default function SettingsPage() {
   useEffect(() => {
     localStorage.setItem("asspp-default-country", country);
   }, [country]);
-
-  useEffect(() => {
-    localStorage.setItem("asspp-default-entity", entity);
-  }, [entity]);
 
   useEffect(() => {
     apiGet<ServerInfo>("/api/settings")
@@ -238,26 +229,20 @@ export default function SettingsPage() {
             </div>
             <div>
               <label
-                htmlFor="entity"
+                htmlFor="platform"
                 className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
               >
-                {t("settings.defaults.entity")}
+                {t("settings.defaults.platform")}
               </label>
-              <select
-                id="entity"
-                value={entity}
-                onChange={(e) => {
-                  setEntity(e.target.value);
-                  addToast(t("settings.defaults.entityChanged"), "success");
+              <PlatformSelector
+                id="platform"
+                variant="select"
+                value={platform}
+                onChange={(next) => {
+                  setPlatform(next);
+                  addToast(t("settings.defaults.platformChanged"), "success");
                 }}
-                className="block min-w-0 max-w-full w-full truncate rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-base text-gray-900 dark:text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
-              >
-                {entityTypes.map((et) => (
-                  <option key={et.value} value={et.value}>
-                    {et.label}
-                  </option>
-                ))}
-              </select>
+              />
             </div>
           </div>
         </section>

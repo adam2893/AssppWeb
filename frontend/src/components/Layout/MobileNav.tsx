@@ -4,6 +4,7 @@ import {
   AccountsIcon,
   DownloadsIcon,
   HomeIcon,
+  PurchasesIcon,
   SearchIcon,
   SettingsIcon,
 } from '../common/icons';
@@ -13,6 +14,7 @@ const navItems = [
   { to: '/accounts', label: 'accounts', icon: AccountsIcon },
   { to: '/search', label: 'search', icon: SearchIcon },
   { to: '/downloads', label: 'downloads', icon: DownloadsIcon },
+  { to: '/purchases', label: 'purchases', icon: PurchasesIcon },
   { to: '/settings', label: 'settings', icon: SettingsIcon },
 ];
 

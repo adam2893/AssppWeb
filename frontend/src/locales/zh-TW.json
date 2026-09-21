@@ -16,11 +16,18 @@
     "available": "可用國家 / 地區",
     "all": "所有國家 / 地區"
   },
+  "platform": {
+    "label": "平台",
+    "iphone": "iPhone",
+    "ipad": "iPad",
+    "appletv": "tvOS"
+  },
   "nav": {
     "home": "首頁",
     "accounts": "帳號",
     "search": "搜尋",
     "downloads": "下載",
+    "purchases": "已購項目",
     "settings": "設定"
   },
   "home": {
@@ -236,6 +243,37 @@
       "updateFailed": "開始更新失敗。"
     }
   },
+  "purchases": {
+    "title": "已購項目",
+    "account": "帳號",
+    "refresh": "重新整理",
+    "refreshing": "重新整理中...",
+    "loading": "正在載入已購項目...",
+    "empty": "尚無已購應用程式",
+    "emptyDesc": "此 Apple ID 尚未購買任何應用程式。",
+    "noAccounts": "尚無帳號",
+    "noAccountsDesc": "新增 Apple ID 後即可查看其已購應用程式。",
+    "noAccountsLink": "新增帳號",
+    "authTitle": "登入已過期",
+    "authDesc": "Apple 已不再接受此帳號儲存的登入狀態，因此無法載入其已購項目。請重新認証後繼續。",
+    "authAction": "重新認証",
+    "errorTitle": "無法載入已購項目",
+    "errorRetry": "重試",
+    "filterPlaceholder": "依名稱或 Bundle ID 篩選",
+    "filterEmpty": "沒有符合的應用程式",
+    "filterEmptyDesc": "沒有符合篩選條件的已購應用程式。",
+    "count": "{{total}} 個應用程式",
+    "range": "第 {{from}}–{{to}} 項，共 {{total}} 項",
+    "prev": "上一頁",
+    "next": "下一頁",
+    "unknownDate": "日期未知",
+    "platform": {
+      "iphone": "iPhone",
+      "ipad": "iPad",
+      "macos": "macOS",
+      "visionos": "visionOS"
+    }
+  },
   "settings": {
     "title": "設定",
     "language": {
@@ -246,9 +284,9 @@
     "defaults": {
       "title": "預設設定",
       "country": "預設國家 / 地區",
-      "entity": "預設裝置類型",
       "countryChanged": "預設國家 / 地區已更新",
-      "entityChanged": "預設裝置類型已更新"
+      "platform": "預設平台",
+      "platformChanged": "預設平台已更新"
     },
     "server": {
       "title": "伺服器",
@@ -434,8 +472,12 @@
       "missingMetadata": "缺少中繼資料",
       "missingVersion": "缺少所需的版本資訊",
       "invalidSinf": "無效的 sinf 項目",
-      "noSinf": "回應中找不到 sinf",
-      "tooManyRedirects": "重新導向次數過多"
+      "noSinf": "下載已完成，但缺少安裝應用程式所需的部分資料，此檔案可能無法安裝。請重新下載；若仍無法安裝，請先以此帳號取得此應用程式的授權。",
+      "tooManyRedirects": "重新導向次數過多",
+      "missingInfoPlist": "IPA 不包含 Info.plist",
+      "missingSupportedPlatforms": "IPA 缺少 CFBundleSupportedPlatforms",
+      "platformMismatch": "IPA 平台不匹配：預期 {{expected}}，實際 {{actual}}",
+      "unsupportedCompression": "不支援的 ZIP 壓縮方式：{{method}}"
     },
     "purchase": {
       "paidNotSupported": "不支援購買付費應用程式",

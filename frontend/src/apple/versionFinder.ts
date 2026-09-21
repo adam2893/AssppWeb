@@ -7,11 +7,99 @@ import {
   redownloadEndpoint,
   volumeStoreEndpoint,
 } from "./config";
+import type { PlatformId } from "./platform";
+import { PLATFORMS } from "./platform";
+
+/**
+ * Resolve the latest version external ID via the MZStorePlatform lookup
+ * endpoint. Returns the externalId from the offers array, falling back to
+ * appExtVrsId from buyParams.
+ *
+ * For mobile platforms (iphone/ipad), retries with iphone then ipad catalogs
+ * when the primary catalog (enterprisestore) yields nothing.
+ */
+async function lookupPlatformVersion(
+  appId: number,
+  country: string,
+  platform: PlatformId,
+): Promise<string> {
+  const def = PLATFORMS[platform];
+  const url = new URL(
+    "https://uclient-api.itunes.apple.com/WebObjects/MZStorePlatform.woa/wa/lookup",
+  );
+  url.searchParams.set("version", "2");
+  url.searchParams.set("id", String(appId));
+  url.searchParams.set("p", "mdm-lockup");
+  url.searchParams.set("caller", "MDM");
+  url.searchParams.set("platform", def.versionCatalog);
+  url.searchParams.set("cc", country);
+  url.searchParams.set("l", "en");
+
+  // Try the primary catalog first.
+  const result = await tryCatalog(url, appId);
+  if (result) return result;
+
+  // For mobile platforms, retry with iphone then ipad catalogs.
+  if (platform === "iphone" || platform === "ipad") {
+    for (const fallback of ["iphone", "ipad"] as PlatformId[]) {
+      url.searchParams.set("platform", fallback);
+      const fbResult = await tryCatalog(url, appId);
+      if (fbResult) return fbResult;
+    }
+  }
+
+  throw new Error(
+    `No version data found for app ${appId} on ${platform}`,
+  );
+}
+
+/** Attempt a single catalog lookup; returns the version ID or null. */
+async function tryCatalog(
+  url: URL,
+  appId: number,
+): Promise<string | null> {
+  const resp = await fetch(url.toString());
+  if (!resp.ok) return null;
+  const data = await resp.json() as any;
+  const result = data?.results?.[String(appId)];
+  if (!result) return null;
+  return extractVersionId(result, appId);
+}
+
+function extractVersionId(
+  result: any,
+  appId: number,
+): string {
+  const offer = result.offers?.[0];
+  if (offer?.version?.externalId) {
+    return String(offer.version.externalId);
+  }
+  // Fallback: parse appExtVrsId from buyParams
+  const buyParams: string = offer?.buyParams ?? "";
+  const match = buyParams.match(/appExtVrsId=(\d+)/);
+  if (match) {
+    return match[1];
+  }
+  throw new Error(
+    `No version identifier found for app ${appId} in MZStorePlatform response`,
+  );
+}
 
 export async function listVersions(
   account: Account,
   app: Software,
+  platform?: PlatformId,
 ): Promise<{ versions: string[]; updatedCookies: typeof account.cookies }> {
+  // When a platform is specified, use the MZStorePlatform endpoint to resolve
+  // the latest version external ID, then return it as a single-element list.
+  if (platform) {
+    const versionId = await lookupPlatformVersion(
+      app.id,
+      account.store,
+      platform,
+    );
+    return { versions: [versionId], updatedCookies: account.cookies };
+  }
   const deviceId = account.deviceIdentifier;
 
   let endpoint = volumeStoreEndpoint(account.pod, deviceId);

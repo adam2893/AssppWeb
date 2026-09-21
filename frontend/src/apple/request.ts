@@ -18,6 +18,8 @@ export interface AppleResponse {
   headers: Record<string, string>;
   rawHeaders: [string, string][];
   body: string;
+  /** Raw response bytes (for binary protocols like DMAP). */
+  rawBody: ArrayBuffer;
 }
 
 export async function appleRequest(
@@ -51,7 +53,8 @@ export async function appleRequest(
     responseHeaders[key.toLowerCase()] = value;
   }
 
-  const body = await resp.text();
+  const rawBody = await resp.arrayBuffer();
+  const body = new TextDecoder().decode(rawBody);
 
   return {
     status: resp.status,
@@ -59,5 +62,6 @@ export async function appleRequest(
     headers: responseHeaders,
     rawHeaders: resp.raw_headers,
     body,
+    rawBody,
   };
 }
