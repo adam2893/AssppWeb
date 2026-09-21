@@ -12,6 +12,37 @@ AssppWeb uses a zero-trust design where the server **never sees your Apple crede
 
 **恳请所有转发项目的博主对自己的受众进行网络安全技术科普。要有哪个不拎清的大头儿子搞出事情来都够我们喝一壶的。**
 
+## Features
+
+**Accounts and discovery**
+
+- **Multi-account** — sign in with several Apple IDs and switch between them. Each account keeps its own storefront, cookies, and device identifier.
+- **Store search** — search the iTunes catalogue by country, with separate results for **iPhone, iPad, and Apple TV**.
+- **License acquisition** — claim an app's licence so it downloads with your account's DRM rights. *(Free apps only — paid purchases are not supported.)*
+- **Version history** — browse an app's older versions and download a specific one.
+- **Purchase history** — browse every app your account already owns, without searching for it first.
+
+**Download**
+
+- **Multi-threaded transfers** — chunked, parallel downloads with live progress (`DOWNLOAD_THREADS`).
+- **Resilient resolution** — if Apple's primary download endpoint returns nothing, the request automatically falls back through the redownload and update endpoints.
+- **Platform-aware** — downloads resolve against the correct catalogue for the platform you selected, and the resulting package is verified to actually match it.
+
+**Install**
+
+- **OTA install** — install straight from the browser over `itms-services`, with the app's real icon in the install manifest.
+- **QR code** — scan from another device to install there.
+- **IPA access** — download the compiled IPA directly, or share it.
+
+**Operations**
+
+- **IPA cache** — compiled packages are cached and reclaimed automatically by age or total size (`AUTO_CLEANUP_DAYS`, `AUTO_CLEANUP_MAX_MB`).
+- **Access password** — optionally gate the whole instance behind a shared password (`ACCESS_PASSWORD`).
+- **Encrypted account export/import** — move your accounts between instances as a PBKDF2 + AES-GCM encrypted file.
+- **Six languages** — English, Simplified Chinese, Traditional Chinese, Japanese, Korean, and Russian.
+
+> **Platform support:** iPhone, iPad, and Apple TV. macOS is not supported — its downloads return a `.pkg` that requires StoreAgent decryption.
+
 ## Quick Start
 
 ### Deploy to Cloudflare
