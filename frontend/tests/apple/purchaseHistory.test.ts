@@ -467,4 +467,54 @@ describe("apple/purchaseHistory", () => {
       expect(page).toEqual([]);
     });
   });
+
+  describe("DAAP login transport (regression)", () => {
+    it("sends an explicit Content-Length: 0 on /login", async () => {
+      // /login has no body by design. Without an explicit Content-Length,
+      // Akamai in front of pd.itunes.apple.com answers with 411 + text/html
+      // BEFORE the request reaches Apple, which surfaced to users as the
+      // misleading "missing mlog container". libcurl.js treats an empty-string
+      // body as falsy (`body ? allocate_array(body) : null`), so the header has
+      // to be set explicitly — passing body: "" would NOT fix it.
+      const loginBuf = buildLoginBuffer(100);
+      const updateBuf = buildUpdateBuffer(200);
+      const itemsBuf = buildItemsBuffer(200, []);
+
+      const seq = [
+        makeMockResponse(loginBuf),
+        makeMockResponse(updateBuf),
+        makeMockResponse(itemsBuf),
+        makeMockResponse(loginBuf),
+        makeMockResponse(updateBuf),
+        makeMockResponse(itemsBuf),
+      ];
+      let i = 0;
+      vi.mocked(appleRequest).mockImplementation(async () => seq[i++]);
+
+      await fetchOwnedApps(mockAccount);
+
+      const loginCalls = vi
+        .mocked(appleRequest)
+        .mock.calls.filter((c) => String(c[0].path).endsWith("/login"));
+      expect(loginCalls.length).toBeGreaterThan(0);
+      for (const call of loginCalls) {
+        expect(call[0].headers!["Content-Length"]).toBe("0");
+      }
+    });
+
+    it("surfaces Apple's merr/mstt status instead of 'missing mlog'", async () => {
+      // Apple's real DMAP error shape: merr → mstt = 400.
+      const errBuf = writeDmapContainer("merr", [writeDmapUInt32("mstt", 400)]);
+      vi.mocked(appleRequest).mockImplementation(async () =>
+        makeMockResponse(errBuf),
+      );
+
+      const err = (await fetchOwnedApps(mockAccount).catch(
+        (e) => e as Error,
+      )) as Error;
+
+      expect(err.message).toMatch(/status 400/);
+      expect(err.message).not.toMatch(/missing mlog/);
+    });
+  });
 });

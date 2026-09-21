@@ -85,13 +85,70 @@ function assertNotExpired(status: number): void {
   }
 }
 
+/**
+ * Apple reports DAAP-level failures as `merr` → `mstt` (a status code) rather
+ * than the container we asked for. Without reading it, EVERY such failure
+ * surfaces as "missing <container>" and hides the real cause.
+ */
+function assertDaapOk(nodes: DmapNode[], stage: string): void {
+  const mstt = findTag(nodes, "mstt");
+  if (!mstt) return;
+  const code = readNumericValue(mstt);
+  if (code === undefined || code === 200) return;
+  if (code === 401 || code === 403) {
+    throw new DaapAuthError(`DAAP ${stage}: session rejected (status ${code})`);
+  }
+  throw new Error(`DAAP ${stage} failed (Apple status ${code})`);
+}
+
+/** First bytes as hex + printable ASCII, so a non-DMAP body is identifiable. */
+function describeBody(raw: ArrayBuffer): string {
+  const bytes = new Uint8Array(raw).subarray(0, 48);
+  const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(" ");
+  const ascii = Array.from(bytes, (b) =>
+    b >= 0x20 && b < 0x7f ? String.fromCharCode(b) : ".",
+  ).join("");
+  return `hex[${hex}] ascii["${ascii}"]`;
+}
+
+/**
+ * A missing container is nearly always a transport-level failure rather than a
+ * protocol surprise — report enough to tell them apart.
+ */
+function missingContainer(
+  stage: string,
+  container: string,
+  response: {
+    status: number;
+    headers: Record<string, string>;
+    rawBody: ArrayBuffer;
+  },
+): Error {
+  return new Error(
+    `DAAP ${stage} response had no "${container}" container ` +
+      `(HTTP ${response.status}, content-type ${response.headers["content-type"] ?? "unknown"}). ` +
+      `Body starts with ${describeBody(response.rawBody)}`,
+  );
+}
+
 async function daapLogin(
   account: Account,
   storeFront: string,
   cookies: Cookie[],
 ): Promise<{ mlid: number; cookies: Cookie[] }> {
   const now = new Date();
-  const headers = buildCommonHeaders(account, storeFront, now);
+  const headers = {
+    ...buildCommonHeaders(account, storeFront, now),
+    // /login has no body by design, but Akamai in front of pd.itunes.apple.com
+    // answers a bodyless POST with 411 + text/html BEFORE it reaches Apple —
+    // which surfaced as the misleading "missing mlog container".
+    // libcurl.js computes `body_ptr = body ? allocate_array(body) : null`, so an
+    // empty-string body is falsy and still sends no Content-Length; the header
+    // has to be explicit.
+    // Verified against the live endpoint: without this 411/text-html, with it
+    // 400/application/x-dmap-tagged (real DMAP).
+    "Content-Length": "0",
+  };
   // /login is unsigned — no X-Apple-ActionSignature.
 
   const response = await appleRequest({
@@ -107,13 +164,17 @@ async function daapLogin(
   const mergedCookies = mergeResponseCookies(response.rawHeaders, cookies);
 
   const nodes = parseDmap(response.rawBody);
+  assertDaapOk(nodes, "login");
+
   const mlog = findTag(nodes, "mlog");
   if (!mlog) {
-    throw new Error("DAAP login response missing mlog container");
+    throw missingContainer("login", "mlog", response);
   }
   const mlid = findTag(mlog.children, "mlid");
   if (!mlid || mlid.uint32Value === undefined) {
-    throw new Error("DAAP login response missing mlid");
+    throw new Error(
+      `DAAP login response had an mlog container but no mlid (HTTP ${response.status})`,
+    );
   }
 
   return { mlid: mlid.uint32Value, cookies: mergedCookies };
@@ -154,13 +215,17 @@ async function daapUpdate(
   const mergedCookies = mergeResponseCookies(response.rawHeaders, cookies);
 
   const nodes = parseDmap(response.rawBody);
+  assertDaapOk(nodes, "update");
+
   const mupd = findTag(nodes, "mupd");
   if (!mupd) {
-    throw new Error("DAAP update response missing mupd container");
+    throw missingContainer("update", "mupd", response);
   }
   const musr = findTag(mupd.children, "musr");
   if (!musr || musr.uint32Value === undefined) {
-    throw new Error("DAAP update response missing musr");
+    throw new Error(
+      `DAAP update response had an mupd container but no musr (HTTP ${response.status})`,
+    );
   }
 
   return { musr: musr.uint32Value, cookies: mergedCookies };
@@ -201,12 +266,10 @@ async function daapItems(
 
   const mergedCookies = mergeResponseCookies(response.rawHeaders, cookies);
 
-  // Check top-level status
+  // Apple reports DAAP-level failures as merr → mstt. A success has either no
+  // mstt or mstt === 200, so this only fires on a real failure.
   const nodes = parseDmap(response.rawBody);
-  const mstt = findTag(nodes, "mstt");
-  if (mstt?.uint32Value === 401 || mstt?.uint32Value === 403) {
-    throw new DaapAuthError("DAAP token expired");
-  }
+  assertDaapOk(nodes, "items");
 
   const items = parseItemsResponse(nodes);
   return { items, cookies: mergedCookies };

@@ -86,6 +86,10 @@ export interface DmapNode {
 // Tags known to be containers.
 const CONTAINER_TAGS = new Set([
   "adsr", "adbs", "mlcl", "mlit", "mlog", "mupd",
+  // Apple reports failures as `merr` → `mstt` (a status code). Without `merr`
+  // here, parseDmap never recurses into it, so the nested `mstt` is invisible
+  // and every DAAP error looks like a missing container.
+  "merr",
   "cmst", "cmsr", "avdb",
   "apso", "aeFR", "aeSR", "aeFC", "aeS1", "aeS2", "aeS3",
 ]);
