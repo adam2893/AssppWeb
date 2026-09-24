@@ -23,6 +23,14 @@ const progressListeners = new Map<string, Set<(task: DownloadTask) => void>>();
 // only ever in `activeDownloads` while `startDownload` is running for it.
 const downloadQueue: string[] = [];
 const activeDownloads = new Set<string>();
+/**
+ * Tasks whose download was aborted on purpose by pauseTask(). The abort
+ * rejection must not be reported as a failure: pausing and resuming within the
+ * same tick leaves the task "pending" (not "paused") by the time the aborted
+ * download settles, so the status alone cannot tell a pause apart from a
+ * timeout — and the task would be marked "failed" with its file deleted.
+ */
+const deliberatelyAborted = new Set<string>();
 
 /** Start the next queued task(s) while a slot is free. */
 function pumpQueue(): void {
@@ -34,6 +42,15 @@ function pumpQueue(): void {
     const task = tasks.get(id);
     // Skip anything paused or deleted while it sat in the queue.
     if (!task || task.status !== "pending") continue;
+    // Already running: pauseTask() + resumeTask() in one tick re-queues a task
+    // before its aborted download has settled. Keep it queued (dropping it here
+    // would strand the task forever) and stop pumping — the download that is
+    // still winding down calls pumpQueue() again when it releases its slot, and
+    // starting it now would run two downloaders for the same task.
+    if (activeDownloads.has(id)) {
+      downloadQueue.push(id);
+      break;
+    }
     startQueued(task);
   }
 }
@@ -389,6 +406,7 @@ export function deleteTask(id: string): boolean {
 
   tasks.delete(id);
   progressListeners.delete(id);
+  deliberatelyAborted.delete(id);
   persistTasks();
   return true;
 }
@@ -396,6 +414,10 @@ export function deleteTask(id: string): boolean {
 export function pauseTask(id: string): boolean {
   const task = tasks.get(id);
   if (!task || task.status !== "downloading") return false;
+
+  // Record that this abort is intentional before it takes effect, so the
+  // resulting AbortError is never mistaken for a timeout.
+  deliberatelyAborted.add(id);
 
   const controller = abortControllers.get(id);
   if (controller) {
@@ -470,6 +492,10 @@ export function createTask(
 }
 
 async function startDownload(task: DownloadTask) {
+  // This invocation owns the task now, so a previous pause no longer excuses an
+  // abort from this download.
+  deliberatelyAborted.delete(task.id);
+
   // Pre-download cleanup: expire old files + enforce space limit
   runTimeCleanup();
   runSpaceCleanup();
@@ -565,9 +591,16 @@ async function startDownload(task: DownloadTask) {
     clearTimeout(timeout);
 
     if (err instanceof Error && err.name === "AbortError") {
-      // Status may have been changed to "paused" externally by pauseTask().
-      // A paused task KEEPS its file so it can resume, so return before cleanup.
-      if ((task.status as string) === "paused") return;
+      // Aborted on purpose by pauseTask(). A paused task KEEPS its file so it can
+      // resume, so return before cleanup. The recorded intent is checked as well
+      // as the status because a task resumed in the same tick is "pending" again
+      // by now — see `deliberatelyAborted`.
+      if (
+        deliberatelyAborted.has(task.id) ||
+        (task.status as string) === "paused"
+      ) {
+        return;
+      }
       task.status = "failed";
       task.error = "Download timed out";
       await removePartialFile(task);

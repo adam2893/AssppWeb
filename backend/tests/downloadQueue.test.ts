@@ -337,6 +337,29 @@ describe("download queue slot handling", () => {
     expect(getTask(a.id)?.status).toBe("downloading");
   });
 
+  it("restarts cleanly when paused and resumed in the same tick", async () => {
+    const a = start("a");
+
+    // resumeTask runs before the aborted download has settled, so the task is
+    // "pending" again while its first invocation is still winding down.
+    expect(pauseTask(a.id)).toBe(true);
+    expect(resumeTask(a.id)).toBe(true);
+
+    await vi.waitFor(() => {
+      expect(h.started.filter((id) => id === a.id)).toHaveLength(2);
+    });
+
+    // The stale abort must not be reported as a timeout failure, must not
+    // delete the file, and must not overlap the restarted download.
+    expect(getTask(a.id)?.status).toBe("downloading");
+    expect(getTask(a.id)?.error).toBeUndefined();
+    expect(h.maxActive).toBe(1);
+
+    // ...and the restarted download still completes normally.
+    h.pending.get(a.id)?.resolve();
+    await vi.waitFor(() => expect(getTask(a.id)?.status).toBe("completed"));
+  });
+
   it("refuses to pause a task that is still queued", () => {
     start("a");
     start("b");
