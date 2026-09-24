@@ -28,12 +28,14 @@ interface ServerInfo {
 export default function SettingsPage() {
   const { t, i18n } = useTranslation();
   const { accounts, addAccount, updateAccount } = useAccountsStore();
-  const { platform, setPlatform } = useSettingsStore();
+  const {
+    platform,
+    setPlatform,
+    defaultCountry: country,
+    setDefaultCountry,
+  } = useSettingsStore();
   const addToast = useToastStore((s) => s.addToast);
 
-  const [country, setCountry] = useState(
-    () => localStorage.getItem("asspp-default-country") || "US",
-  );
   const [serverInfo, setServerInfo] = useState<ServerInfo | null>(null);
 
   const [exportModalOpen, setExportModalOpen] = useState(false);
@@ -48,10 +50,6 @@ export default function SettingsPage() {
   const [conflictModalOpen, setConflictModalOpen] = useState(false);
   const [pendingAccounts, setPendingAccounts] = useState<Account[]>([]);
   const [conflictStats, setConflictStats] = useState({ conflict: 0, new: 0 });
-
-  useEffect(() => {
-    localStorage.setItem("asspp-default-country", country);
-  }, [country]);
 
   useEffect(() => {
     apiGet<ServerInfo>("/api/settings")
@@ -215,7 +213,7 @@ export default function SettingsPage() {
                 id="country"
                 value={country}
                 onChange={(e) => {
-                  setCountry(e.target.value);
+                  setDefaultCountry(e.target.value);
                   addToast(t("settings.defaults.countryChanged"), "success");
                 }}
                 className="block min-w-0 max-w-full w-full truncate rounded-md border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2 text-base text-gray-900 dark:text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
