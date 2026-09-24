@@ -121,6 +121,25 @@ describe("PurchaseHistory", () => {
     );
   });
 
+  it("links each owned app to its product page", async () => {
+    mocks.fetchOwnedApps.mockResolvedValue({
+      apps: [makeApp(1), makeApp(2)],
+      updatedCookies: [],
+    });
+
+    renderPage();
+
+    // The row carries only ids, so the product page looks the app up itself.
+    expect(await screen.findByRole("link", { name: /App 1/ })).toHaveAttribute(
+      "href",
+      "/search/1001",
+    );
+    expect(screen.getByRole("link", { name: /App 2/ })).toHaveAttribute(
+      "href",
+      "/search/1002",
+    );
+  });
+
   it("surfaces an actionable re-authenticate state when the token expired", async () => {
     mocks.fetchOwnedApps.mockRejectedValue(new DaapAuthError("token expired"));
 

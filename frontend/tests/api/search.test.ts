@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { searchApps } from "../../src/api/search";
+import { searchApps, lookupApp } from "../../src/api/search";
 import { apiGet } from "../../src/api/client";
 
 vi.mock("../../src/api/client", () => ({
@@ -52,5 +52,50 @@ describe("api/search entity mapping", () => {
     expect(params.get("term")).toBe("hello");
     expect(params.get("country")).toBe("GB");
     expect(params.get("limit")).toBe("10");
+  });
+});
+
+/**
+ * iTunes honours only one of `id` / `bundleId` and silently returns zero
+ * results for the other, so sending the wrong one looks like "app not found".
+ * The product route carries a numeric id, so it must not be sent as a bundle id.
+ */
+describe("api/search lookup identifier", () => {
+  beforeEach(() => {
+    vi.mocked(apiGet).mockReset();
+    vi.mocked(apiGet).mockResolvedValue(null);
+  });
+
+  async function lookupParams(
+    identifier: string,
+    platform?: "iphone" | "ipad" | "appletv",
+  ): Promise<URLSearchParams> {
+    vi.mocked(apiGet).mockClear();
+    await lookupApp(identifier, "GB", platform);
+    const url = vi.mocked(apiGet).mock.calls[0][0] as string;
+    return new URLSearchParams(url.split("?")[1]);
+  }
+
+  it("sends a numeric id as id=", async () => {
+    const params = await lookupParams("284882215");
+    expect(params.get("id")).toBe("284882215");
+    expect(params.get("bundleId")).toBeNull();
+    expect(params.get("country")).toBe("GB");
+  });
+
+  it("sends a bundle id as bundleId=", async () => {
+    const params = await lookupParams("com.example.app");
+    expect(params.get("bundleId")).toBe("com.example.app");
+    expect(params.get("id")).toBeNull();
+  });
+
+  it("still passes the platform's lookup entity", async () => {
+    // tvOS lookup takes only tvSoftware, unlike its compound search entity.
+    expect((await lookupParams("com.example.app", "appletv")).get("entity")).toBe(
+      "tvSoftware",
+    );
+    expect((await lookupParams("123", "ipad")).get("entity")).toBe(
+      "iPadSoftware",
+    );
   });
 });
