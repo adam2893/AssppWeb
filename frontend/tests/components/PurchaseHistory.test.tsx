@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   loadAccounts: vi.fn(),
   updateAccount: vi.fn(),
   fetchOwnedApps: vi.fn(),
+  authenticate: vi.fn(),
 }));
 
 vi.mock("react-i18next", () => ({
@@ -26,6 +27,10 @@ vi.mock("../../src/hooks/useAccounts", () => ({
     loadAccounts: mocks.loadAccounts,
     updateAccount: mocks.updateAccount,
   }),
+}));
+
+vi.mock("../../src/apple/authenticate", () => ({
+  authenticate: mocks.authenticate,
 }));
 
 vi.mock("../../src/apple/purchaseHistory", () => {
@@ -57,6 +62,13 @@ const account: Account = {
   deviceIdentifier: "aabbccddeeff",
 };
 
+/** What a silent re-login hands back: a fresh token and cookies. */
+const renewedAccount: Account = {
+  ...account,
+  passwordToken: "renewed-token",
+  cookies: [{ name: "session", value: "renewed", path: "/" }],
+};
+
 function makeApp(index: number): OwnedApp {
   return {
     adamId: 1000 + index,
@@ -84,6 +96,10 @@ describe("PurchaseHistory", () => {
     mocks.updateAccount.mockReset();
     mocks.fetchOwnedApps.mockReset();
     mocks.fetchOwnedApps.mockResolvedValue({ apps: [], updatedCookies: [] });
+    // The DAAP token is renewed through the same authenticate() the download
+    // flow uses; default to success so unrelated tests stay on the happy path.
+    mocks.authenticate.mockReset();
+    mocks.authenticate.mockResolvedValue(renewedAccount);
   });
 
   afterEach(() => {
@@ -140,7 +156,44 @@ describe("PurchaseHistory", () => {
     );
   });
 
-  it("surfaces an actionable re-authenticate state when the token expired", async () => {
+  it("renews an expired DAAP token and loads the list without asking to sign in", async () => {
+    mocks.fetchOwnedApps
+      .mockRejectedValueOnce(new DaapAuthError("token expired"))
+      .mockResolvedValue({ apps: [makeApp(1)], updatedCookies: [] });
+
+    renderPage();
+
+    expect(await screen.findByText("App 1")).toBeInTheDocument();
+    // The stored password is reused rather than re-prompted for.
+    expect(mocks.authenticate).toHaveBeenCalledTimes(1);
+    expect(mocks.authenticate).toHaveBeenCalledWith(
+      account.email,
+      account.password,
+      undefined,
+      account.cookies,
+      account.deviceIdentifier,
+    );
+    // The renewed account is persisted, and the retry runs against it.
+    expect(mocks.updateAccount).toHaveBeenCalledWith(renewedAccount);
+    expect(mocks.fetchOwnedApps).toHaveBeenCalledTimes(2);
+    expect(mocks.fetchOwnedApps).toHaveBeenLastCalledWith(renewedAccount);
+    expect(screen.queryByText("purchases.authTitle")).not.toBeInTheDocument();
+  });
+
+  it("does not retry the fetch when renewal itself fails", async () => {
+    mocks.fetchOwnedApps.mockRejectedValue(new DaapAuthError("token expired"));
+    mocks.authenticate.mockRejectedValue(new Error("password changed"));
+
+    renderPage();
+
+    expect(await screen.findByText("purchases.authTitle")).toBeInTheDocument();
+    // A failed renewal must not loop: one attempt, no retry.
+    expect(mocks.authenticate).toHaveBeenCalledTimes(1);
+    expect(mocks.fetchOwnedApps).toHaveBeenCalledTimes(1);
+  });
+
+  it("surfaces an actionable re-authenticate state when renewal does not help", async () => {
+    // fetchOwnedApps keeps rejecting, so the single retry fails too.
     mocks.fetchOwnedApps.mockRejectedValue(new DaapAuthError("token expired"));
 
     renderPage();
@@ -152,6 +205,9 @@ describe("PurchaseHistory", () => {
     ).toHaveAttribute("href", "/accounts/owner%40example.test");
     // Not an empty list.
     expect(screen.queryByText("purchases.empty")).not.toBeInTheDocument();
+    // Exactly one renewal and one retry, then stop.
+    expect(mocks.authenticate).toHaveBeenCalledTimes(1);
+    expect(mocks.fetchOwnedApps).toHaveBeenCalledTimes(2);
   });
 
   it("shows a retryable error state for other failures", async () => {
@@ -163,6 +219,8 @@ describe("PurchaseHistory", () => {
     expect(
       screen.getByRole("button", { name: "purchases.errorRetry" }),
     ).toBeInTheDocument();
+    // Only a rejected session triggers a renewal.
+    expect(mocks.authenticate).not.toHaveBeenCalled();
   });
 
   it("shows an empty state when the account owns nothing", async () => {

@@ -5,14 +5,17 @@ import PageContainer from "../Layout/PageContainer";
 import Alert from "../common/Alert";
 import AppIcon from "../common/AppIcon";
 import { useAccounts } from "../../hooks/useAccounts";
+import { authenticate } from "../../apple/authenticate";
 import {
   fetchOwnedApps,
   pageOwnedApps,
   DaapAuthError,
   type OwnedApp,
+  type OwnedAppsResult,
 } from "../../apple/purchaseHistory";
 import { accountStoreCountry } from "../../utils/account";
 import { getErrorMessage } from "../../utils/error";
+import type { Account } from "../../types";
 
 /** The full list is fetched up front, so paging happens in memory. */
 const PAGE_SIZE = 50;
@@ -63,6 +66,42 @@ export default function PurchaseHistory() {
     }
   }, [accounts, selectedEmail]);
 
+  /**
+   * Load the owned-apps list, renewing the DAAP password token once if Apple
+   * rejects the session.
+   *
+   * The account already stores the password, and the download flow
+   * re-authenticates the same way before purchasing, so an expired token does
+   * not have to send the user back to the account page to retype it.
+   *
+   * Exactly one attempt is made: if renewing or the retry fails, the original
+   * DaapAuthError is rethrown so the caller shows the re-authenticate state.
+   */
+  async function loadOwnedApps(account: Account): Promise<{
+    account: Account;
+    result: OwnedAppsResult;
+  }> {
+    try {
+      return { account, result: await fetchOwnedApps(account) };
+    } catch (error) {
+      if (!(error instanceof DaapAuthError)) throw error;
+
+      try {
+        const renewed = await authenticate(
+          account.email,
+          account.password,
+          undefined,
+          account.cookies,
+          account.deviceIdentifier,
+        );
+        await updateAccount(renewed);
+        return { account: renewed, result: await fetchOwnedApps(renewed) };
+      } catch {
+        throw error;
+      }
+    }
+  }
+
   // Fetch owned apps whenever the account changes or a refresh is requested.
   useEffect(() => {
     if (!selectedEmail) {
@@ -81,14 +120,17 @@ export default function PurchaseHistory() {
 
     (async () => {
       try {
-        const result = await fetchOwnedApps(account);
+        const loaded = await loadOwnedApps(account);
         if (cancelled) return;
-        setApps(result.apps);
+        setApps(loaded.result.apps);
         setAppsOwner(selectedEmail);
         setStatus("ready");
         // Persist refreshed cookies; the ref-based read above keeps this from
         // retriggering the effect.
-        void updateAccount({ ...account, cookies: result.updatedCookies });
+        void updateAccount({
+          ...loaded.account,
+          cookies: loaded.result.updatedCookies,
+        });
       } catch (error) {
         if (cancelled) return;
         if (error instanceof DaapAuthError) {
