@@ -20,10 +20,11 @@ AssppWeb uses a zero-trust design where the server **never sees your Apple crede
 - **Store search** — search the iTunes catalogue by country, with separate results for **iPhone, iPad, and Apple TV**.
 - **License acquisition** — claim an app's licence so it downloads with your account's DRM rights. *(Free apps only — paid purchases are not supported.)*
 - **Version history** — browse an app's older versions and download a specific one.
-- **Purchase history** — browse every app your account already owns, without searching for it first.
+- **Purchase history** — browse every app your account already owns, tap any owned app to open its product page instantly, and enjoy automatic DAAP token renewal when sessions expire.
 
 **Download**
 
+- **Global download queue** — bounds concurrent downloads (`MAX_CONCURRENT_DOWNLOADS`) to queue tasks and prevent opening excessive simultaneous connections.
 - **Multi-threaded transfers** — chunked, parallel downloads with live progress (`DOWNLOAD_THREADS`).
 - **Resilient resolution** — if Apple's primary download endpoint returns nothing, the request automatically falls back through the redownload and update endpoints.
 - **Platform-aware** — downloads resolve against the correct catalogue for the platform you selected, and the resulting package is verified to actually match it.
@@ -106,6 +107,7 @@ docker compose up -d
 | `AUTO_CLEANUP_MAX_MB`                       | `0`             | Automatically delete oldest cached IPA files when size exceeds this MB limit (0 to disable) |
 | `MAX_DOWNLOAD_MB`                           | `0`             | Reject downloads exceeding this size in MB to prevent out-of-memory errors (0 to disable)   |
 | `DOWNLOAD_THREADS`                          | `8`             | Number of parallel threads for IPA downloads (1–32)                                         |
+| `MAX_CONCURRENT_DOWNLOADS`                  | `2`             | Maximum number of concurrent active downloads in the queue (1–10)                           |
 | `ACCESS_PASSWORD`                           | _(none)_        | Require a password to access the web UI and API (empty to disable)                          |
 
 **Reverse Proxy (Required for Install Apps on iOS)**
