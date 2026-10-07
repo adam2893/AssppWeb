@@ -331,3 +331,67 @@ describe('ProductDetail download action', () => {
     ]);
   });
 });
+
+/**
+ * Opening a product page without route state — a refresh, a direct link, or a
+ * row in Purchase History, which carries only ids — falls back to looking the
+ * app up by the route's :appId. That id is numeric and iTunes only honours
+ * `id=`, so the fallback must not send it as a bundle id: the previous
+ * `bundleId=<id>` form returned zero results and the page said "not found".
+ */
+describe('ProductDetail lookup fallback', () => {
+  function renderWithoutState(path: string, state?: unknown) {
+    return render(
+      <MemoryRouter initialEntries={[{ pathname: path, state }]}>
+        <Routes>
+          <Route path="/search/:appId" element={<ProductDetail />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+  }
+
+  it('looks the app up by its numeric id when opened without route state', async () => {
+    mocks.lookupApp.mockResolvedValue(app);
+
+    renderWithoutState(`/search/${app.id}`);
+
+    expect(
+      await screen.findByRole('heading', { name: app.name }),
+    ).toBeInTheDocument();
+    expect(mocks.lookupApp).toHaveBeenCalledWith(
+      String(app.id),
+      'US',
+      undefined,
+    );
+  });
+
+  it('looks the app up in the storefront handed over by the previous page', async () => {
+    mocks.lookupApp.mockResolvedValue(app);
+
+    renderWithoutState(`/search/${app.id}`, { country: 'GB' });
+
+    expect(
+      await screen.findByRole('heading', { name: app.name }),
+    ).toBeInTheDocument();
+    expect(mocks.lookupApp).toHaveBeenCalledWith(
+      String(app.id),
+      'GB',
+      undefined,
+    );
+  });
+
+  it('renders an app with no ratings instead of throwing', async () => {
+    mocks.lookupApp.mockResolvedValue({
+      ...app,
+      averageUserRating: undefined,
+      userRatingCount: undefined,
+    });
+
+    renderWithoutState(`/search/${app.id}`);
+
+    expect(
+      await screen.findByRole('heading', { name: app.name }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/ratings/)).not.toBeInTheDocument();
+  });
+});

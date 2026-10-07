@@ -5,13 +5,17 @@ import PageContainer from "../Layout/PageContainer";
 import Alert from "../common/Alert";
 import AppIcon from "../common/AppIcon";
 import { useAccounts } from "../../hooks/useAccounts";
-import { getErrorMessage } from "../../utils/error";
+import { authenticate } from "../../apple/authenticate";
 import {
   fetchOwnedApps,
   pageOwnedApps,
   DaapAuthError,
   type OwnedApp,
+  type OwnedAppsResult,
 } from "../../apple/purchaseHistory";
+import { accountStoreCountry } from "../../utils/account";
+import { getErrorMessage } from "../../utils/error";
+import type { Account } from "../../types";
 
 /** The full list is fetched up front, so paging happens in memory. */
 const PAGE_SIZE = 50;
@@ -62,6 +66,42 @@ export default function PurchaseHistory() {
     }
   }, [accounts, selectedEmail]);
 
+  /**
+   * Load the owned-apps list, renewing the DAAP password token once if Apple
+   * rejects the session.
+   *
+   * The account already stores the password, and the download flow
+   * re-authenticates the same way before purchasing, so an expired token does
+   * not have to send the user back to the account page to retype it.
+   *
+   * Exactly one attempt is made: if renewing or the retry fails, the original
+   * DaapAuthError is rethrown so the caller shows the re-authenticate state.
+   */
+  async function loadOwnedApps(account: Account): Promise<{
+    account: Account;
+    result: OwnedAppsResult;
+  }> {
+    try {
+      return { account, result: await fetchOwnedApps(account) };
+    } catch (error) {
+      if (!(error instanceof DaapAuthError)) throw error;
+
+      try {
+        const renewed = await authenticate(
+          account.email,
+          account.password,
+          undefined,
+          account.cookies,
+          account.deviceIdentifier,
+        );
+        await updateAccount(renewed);
+        return { account: renewed, result: await fetchOwnedApps(renewed) };
+      } catch {
+        throw error;
+      }
+    }
+  }
+
   // Fetch owned apps whenever the account changes or a refresh is requested.
   useEffect(() => {
     if (!selectedEmail) {
@@ -80,14 +120,17 @@ export default function PurchaseHistory() {
 
     (async () => {
       try {
-        const result = await fetchOwnedApps(account);
+        const loaded = await loadOwnedApps(account);
         if (cancelled) return;
-        setApps(result.apps);
+        setApps(loaded.result.apps);
         setAppsOwner(selectedEmail);
         setStatus("ready");
         // Persist refreshed cookies; the ref-based read above keeps this from
         // retriggering the effect.
-        void updateAccount({ ...account, cookies: result.updatedCookies });
+        void updateAccount({
+          ...loaded.account,
+          cookies: loaded.result.updatedCookies,
+        });
       } catch (error) {
         if (cancelled) return;
         if (error instanceof DaapAuthError) {
@@ -114,6 +157,12 @@ export default function PurchaseHistory() {
   }, [query, selectedEmail]);
 
   const hasData = appsOwner === selectedEmail && selectedEmail !== "";
+
+  // The storefront this list came from, so a product page opened from a row
+  // looks the app up in the same country and matches the same account.
+  const purchaseCountry =
+    accountStoreCountry(accounts.find((a) => a.email === selectedEmail)) ??
+    "US";
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -260,6 +309,7 @@ export default function PurchaseHistory() {
                     key={app.adamId}
                     app={app}
                     index={index}
+                    country={purchaseCountry}
                     labels={{
                       platforms: PLATFORM_BITS.filter(
                         (p) => (app.platformBitmask & p.bit) !== 0,
@@ -311,10 +361,12 @@ export default function PurchaseHistory() {
 function PurchaseRow({
   app,
   index,
+  country,
   labels,
 }: {
   app: OwnedApp;
   index: number;
+  country: string;
   labels: { platforms: string[]; unknownDate: string };
 }) {
   const displayName = app.name || app.bundleId || String(app.adamId);
@@ -322,40 +374,48 @@ function PurchaseRow({
 
   return (
     <li
-      className="animate-list-row flex items-center gap-4 p-4"
+      className="animate-list-row"
       style={{ animationDelay: `${Math.min(index, 12) * 20}ms` }}
     >
-      <AppIcon name={displayName} size="sm" />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-baseline justify-between gap-3">
-          <p className="min-w-0 flex-1 truncate font-semibold text-gray-900 dark:text-white">
-            {displayName}
-          </p>
-          <time
-            className="shrink-0 text-xs text-gray-400 dark:text-gray-500"
-            title={dateLabel ? undefined : labels.unknownDate}
-          >
-            {dateLabel ?? labels.unknownDate}
-          </time>
-        </div>
-        {app.bundleId && (
-          <p className="mt-0.5 truncate text-sm text-gray-500 dark:text-gray-400">
-            {app.bundleId}
-          </p>
-        )}
-        {(app.version || labels.platforms.length > 0) && (
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            {app.version && (
-              <span className={chipClassName}>{`v${app.version}`}</span>
-            )}
-            {labels.platforms.map((label) => (
-              <span key={label} className={chipClassName}>
-                {label}
-              </span>
-            ))}
+      {/* The owned list carries only ids, so the product page looks the app up
+          itself; `country` keeps that lookup in this account's storefront. */}
+      <Link
+        to={`/search/${app.adamId}`}
+        state={{ country }}
+        className="flex items-center gap-4 p-4 transition-colors hover:bg-gray-50 active:bg-gray-100 dark:hover:bg-gray-800/70 dark:active:bg-gray-800"
+      >
+        <AppIcon name={displayName} size="sm" />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-baseline justify-between gap-3">
+            <p className="min-w-0 flex-1 truncate font-semibold text-gray-900 dark:text-white">
+              {displayName}
+            </p>
+            <time
+              className="shrink-0 text-xs text-gray-400 dark:text-gray-500"
+              title={dateLabel ? undefined : labels.unknownDate}
+            >
+              {dateLabel ?? labels.unknownDate}
+            </time>
           </div>
-        )}
-      </div>
+          {app.bundleId && (
+            <p className="mt-0.5 truncate text-sm text-gray-500 dark:text-gray-400">
+              {app.bundleId}
+            </p>
+          )}
+          {(app.version || labels.platforms.length > 0) && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              {app.version && (
+                <span className={chipClassName}>{`v${app.version}`}</span>
+              )}
+              {labels.platforms.map((label) => (
+                <span key={label} className={chipClassName}>
+                  {label}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </Link>
     </li>
   );
 }

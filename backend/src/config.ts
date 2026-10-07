@@ -41,5 +41,15 @@ export const DOWNLOAD_THREADS = Math.max(
   1,
   Math.min(32, parseInt(process.env.DOWNLOAD_THREADS || "8", 10) || 8),
 );
+// How many downloads may run at once. DOWNLOAD_THREADS is the chunk concurrency
+// WITHIN a single download, so without this ceiling N queued downloads would
+// each open DOWNLOAD_THREADS connections (N x 8 by default).
+export const MAX_CONCURRENT_DOWNLOADS = Math.max(
+  1,
+  Math.min(
+    10,
+    parseInt(process.env.MAX_CONCURRENT_DOWNLOADS || "2", 10) || 2,
+  ),
+);
 export const CHUNK_RETRY_COUNT = 3;
 export const CHUNK_RETRY_DELAY_MS = 2000;

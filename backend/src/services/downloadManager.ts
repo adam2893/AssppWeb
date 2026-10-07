@@ -1,7 +1,11 @@
 import fs from "fs";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
-import { config, DOWNLOAD_TIMEOUT_MS } from "../config.js";
+import {
+  config,
+  DOWNLOAD_TIMEOUT_MS,
+  MAX_CONCURRENT_DOWNLOADS,
+} from "../config.js";
 import { inject } from "./sinfInjector.js";
 import { validatePlatform } from "./platformValidator.js";
 import { ChunkedDownloader } from "./chunkedDownloader.js";
@@ -11,6 +15,54 @@ const tasks = new Map<string, DownloadTask>();
 const abortControllers = new Map<string, AbortController>();
 const chunkDownloaders = new Map<string, ChunkedDownloader>();
 const progressListeners = new Map<string, Set<(task: DownloadTask) => void>>();
+
+// --- Download queue ---
+// DOWNLOAD_THREADS is the chunk concurrency WITHIN one download, so without a
+// global ceiling N queued downloads would each open DOWNLOAD_THREADS
+// connections. `downloadQueue` holds task ids waiting for a slot; a task is
+// only ever in `activeDownloads` while `startDownload` is running for it.
+const downloadQueue: string[] = [];
+const activeDownloads = new Set<string>();
+/**
+ * Tasks whose download was aborted on purpose by pauseTask(). The abort
+ * rejection must not be reported as a failure: pausing and resuming within the
+ * same tick leaves the task "pending" (not "paused") by the time the aborted
+ * download settles, so the status alone cannot tell a pause apart from a
+ * timeout — and the task would be marked "failed" with its file deleted.
+ */
+const deliberatelyAborted = new Set<string>();
+
+/** Start the next queued task(s) while a slot is free. */
+function pumpQueue(): void {
+  while (
+    activeDownloads.size < MAX_CONCURRENT_DOWNLOADS &&
+    downloadQueue.length > 0
+  ) {
+    const id = downloadQueue.shift()!;
+    const task = tasks.get(id);
+    // Skip anything paused or deleted while it sat in the queue.
+    if (!task || task.status !== "pending") continue;
+    // Already running: pauseTask() + resumeTask() in one tick re-queues a task
+    // before its aborted download has settled. Keep it queued (dropping it here
+    // would strand the task forever) and stop pumping — the download that is
+    // still winding down calls pumpQueue() again when it releases its slot, and
+    // starting it now would run two downloaders for the same task.
+    if (activeDownloads.has(id)) {
+      downloadQueue.push(id);
+      break;
+    }
+    startQueued(task);
+  }
+}
+
+/** Run a download, then release its slot and let the queue advance. */
+function startQueued(task: DownloadTask): void {
+  activeDownloads.add(task.id);
+  void startDownload(task).finally(() => {
+    activeDownloads.delete(task.id);
+    pumpQueue();
+  });
+}
 
 const PACKAGES_DIR = path.join(config.dataDir, "packages");
 const TASKS_FILE = path.join(config.dataDir, "tasks.json");
@@ -354,6 +406,7 @@ export function deleteTask(id: string): boolean {
 
   tasks.delete(id);
   progressListeners.delete(id);
+  deliberatelyAborted.delete(id);
   persistTasks();
   return true;
 }
@@ -361,6 +414,10 @@ export function deleteTask(id: string): boolean {
 export function pauseTask(id: string): boolean {
   const task = tasks.get(id);
   if (!task || task.status !== "downloading") return false;
+
+  // Record that this abort is intentional before it takes effect, so the
+  // resulting AbortError is never mistaken for a timeout.
+  deliberatelyAborted.add(id);
 
   const controller = abortControllers.get(id);
   if (controller) {
@@ -382,7 +439,12 @@ export function resumeTask(id: string): boolean {
   const task = tasks.get(id);
   if (!task || task.status !== "paused") return false;
 
-  startDownload(task);
+  // Re-enter the queue rather than starting immediately, so the concurrency
+  // ceiling still holds. pumpQueue starts it now if a slot is free.
+  task.status = "pending";
+  downloadQueue.push(task.id);
+  notifyProgress(task);
+  pumpQueue();
   return true;
 }
 
@@ -424,11 +486,16 @@ export function createTask(
   };
 
   tasks.set(task.id, task);
-  startDownload(task);
+  downloadQueue.push(task.id);
+  pumpQueue();
   return task;
 }
 
 async function startDownload(task: DownloadTask) {
+  // This invocation owns the task now, so a previous pause no longer excuses an
+  // abort from this download.
+  deliberatelyAborted.delete(task.id);
+
   // Pre-download cleanup: expire old files + enforce space limit
   runTimeCleanup();
   runSpaceCleanup();
@@ -524,10 +591,19 @@ async function startDownload(task: DownloadTask) {
     clearTimeout(timeout);
 
     if (err instanceof Error && err.name === "AbortError") {
-      // Status may have been changed to "paused" externally by pauseTask()
-      if ((task.status as string) === "paused") return;
+      // Aborted on purpose by pauseTask(). A paused task KEEPS its file so it can
+      // resume, so return before cleanup. The recorded intent is checked as well
+      // as the status because a task resumed in the same tick is "pending" again
+      // by now — see `deliberatelyAborted`.
+      if (
+        deliberatelyAborted.has(task.id) ||
+        (task.status as string) === "paused"
+      ) {
+        return;
+      }
       task.status = "failed";
       task.error = "Download timed out";
+      await removePartialFile(task);
       notifyProgress(task);
       return;
     }
@@ -539,20 +615,29 @@ async function startDownload(task: DownloadTask) {
     );
     task.error = err instanceof Error ? err.message : "Download failed";
 
-    // A failed task must not leave a fully-downloaded package on disk. Cleanup
-    // only reclaims `completed` tasks and orphan-scanning treats any task with a
-    // filePath as known, so without this the file leaks until an explicit
-    // delete. A platform-validation failure happens AFTER a full download, so
-    // this is the normal path for a mismatched package.
-    if (task.filePath) {
-      try {
-        await fs.promises.rm(task.filePath, { force: true });
-      } catch {
-        // Best effort — a leaked file is better than masking the real error.
-      }
-      task.filePath = undefined;
-    }
+    await removePartialFile(task);
 
     notifyProgress(task);
   }
+}
+
+/**
+ * A failed task must not leave a fully-downloaded package on disk: cleanup only
+ * reclaims `completed` tasks, and orphan-scanning treats any task with a
+ * filePath as known, so without this the file leaks until an explicit delete.
+ *
+ * This matters most for a platform-validation failure, which happens AFTER a
+ * full download, and for a timeout abort, which leaves a partial file.
+ *
+ * Never call this for a PAUSED task — a paused download keeps its file so it
+ * can resume.
+ */
+async function removePartialFile(task: DownloadTask): Promise<void> {
+  if (!task.filePath) return;
+  try {
+    await fs.promises.rm(task.filePath, { force: true });
+  } catch {
+    // Best effort — a leaked file is better than masking the real error.
+  }
+  task.filePath = undefined;
 }
