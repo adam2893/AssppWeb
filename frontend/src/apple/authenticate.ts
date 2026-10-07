@@ -125,6 +125,20 @@ export async function authenticate(
 
       // Handle non-plist responses (e.g. 403 with empty body)
       if (!response.body.trim()) {
+        // Apple still advertises the legacy buy endpoint in some bags. A POST
+        // to that endpoint can return an empty 204 instead of the auth plist.
+        // When SAP is available, retry once against the native endpoint; the
+        // existing signer will add the required action signature.
+        if (
+          response.status === 204 &&
+          sapSigner &&
+          requestHost === "buy.itunes.apple.com"
+        ) {
+          requestHost = "auth.itunes.apple.com";
+          requestPath = `/auth/v1/native/fast/?guid=${encodeURIComponent(deviceId)}`;
+          currentAttempt--;
+          continue;
+        }
         throw new Error(
           i18n.t("errors.auth.emptyBody", { status: response.status }),
         );
