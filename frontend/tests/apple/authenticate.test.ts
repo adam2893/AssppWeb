@@ -53,7 +53,7 @@ describe("apple/authenticate", () => {
     const requestCall = vi.mocked(appleRequest).mock.calls[0][0];
     const endpoint = new URL(`https://${requestCall.host}${requestCall.path}`);
 
-    expect(endpoint.searchParams.get("guid")).toBe("aabbccddeeff");
+    expect(endpoint.searchParams.get("guid")).toBe("AABBCCDDEEFF");
     expect(endpoint.searchParams.getAll("guid")).toHaveLength(1);
     expect(endpoint.searchParams.get("foo")).toBe("1");
   });

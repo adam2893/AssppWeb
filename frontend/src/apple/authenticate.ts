@@ -36,18 +36,19 @@ export async function authenticate(
   existingCookies?: Cookie[],
   deviceId: string = "",
 ): Promise<Account> {
+  const guid = deviceId.toUpperCase();
   let cookies: Cookie[] = existingCookies ? [...existingCookies] : [];
   let storeFront = "";
   let lastError: Error | null = null;
 
   const defaultAuthEndpoint = new URL(defaultAuthURL);
-  defaultAuthEndpoint.searchParams.set("guid", deviceId);
+  defaultAuthEndpoint.searchParams.set("guid", guid);
   let requestHost = defaultAuthEndpoint.hostname;
   let requestPath = `${defaultAuthEndpoint.pathname}${defaultAuthEndpoint.search}`;
 
-  const bag = await fetchBag(deviceId);
+  const bag = await fetchBag(guid);
   const authEndpoint = new URL(bag.authURL);
-  authEndpoint.searchParams.set("guid", deviceId);
+  authEndpoint.searchParams.set("guid", guid);
   requestHost = authEndpoint.hostname;
   requestPath = `${authEndpoint.pathname}${authEndpoint.search}`;
 
@@ -60,7 +61,7 @@ export async function authenticate(
     const assets = await loadSapAssets();
     sapSigner = await createSapSigner({
       ...bag.sapEndpoints,
-      hardwareID: hardwareIdBytes(deviceId),
+      hardwareID: hardwareIdBytes(guid),
       assets,
     });
 
@@ -76,7 +77,7 @@ export async function authenticate(
       const body: Record<string, string> = {
         appleId: email,
         attempt: code ? "2" : "1",
-        guid: deviceId,
+        guid,
         password: code ? `${password}${code}` : password,
         rmp: "0",
         why: "signIn",
