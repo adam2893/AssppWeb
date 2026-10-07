@@ -69,7 +69,7 @@ export async function authenticate(
     try {
       const body: Record<string, string> = {
         appleId: email,
-        attempt: code ? "2" : "4",
+        attempt: code ? "2" : "1",
         guid: deviceId,
         password: code ? `${password}${code}` : password,
         rmp: "0",
@@ -79,7 +79,9 @@ export async function authenticate(
       const plistBody = buildPlist(body);
 
       const headers: Record<string, string> = {
-        "Content-Type": "application/x-apple-plist",
+        // Apple parses the XML plist payload as an x-www-form-urlencoded
+        // authentication request. This is the native client's wire format.
+        "Content-Type": "application/x-www-form-urlencoded",
         Accept: "application/x-apple-plist",
       };
 
