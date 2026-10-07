@@ -12,10 +12,13 @@ export const defaultAuthURL =
   "https://auth.itunes.apple.com/auth/v1/native/fast/";
 
 const NATIVE_AUTH_HOST = "auth.itunes.apple.com";
+const LEGACY_AUTH_HOST = "buy.itunes.apple.com";
 
 // The bag advertises the native auth endpoint without the /fast/ sub-path that
 // the login flow requires; the no-trailing-slash variant 301s to an HTML page.
-// Legacy endpoints on other hosts pass through unchanged.
+// Apple currently advertises the legacy buy.itunes.apple.com endpoint in the
+// bag. That endpoint returns a bare 301 without a Location header, so normalize
+// it to the native auth endpoint before making the request.
 export function normalizeAuthURL(rawURL: string): string {
   let url: URL;
   try {
@@ -23,14 +26,16 @@ export function normalizeAuthURL(rawURL: string): string {
   } catch {
     return rawURL;
   }
-  if (url.hostname !== NATIVE_AUTH_HOST) {
+  if (
+    url.hostname !== NATIVE_AUTH_HOST &&
+    url.hostname !== LEGACY_AUTH_HOST
+  ) {
     return rawURL;
   }
-  let path = url.pathname.replace(/\/+$/, "");
-  if (!path.endsWith("/fast")) {
-    path += "/fast";
-  }
-  url.pathname = `${path}/`;
+  url.hostname = NATIVE_AUTH_HOST;
+  url.pathname = "/auth/v1/native/fast/";
+  url.search = "";
+  url.hash = "";
   return url.toString();
 }
 
