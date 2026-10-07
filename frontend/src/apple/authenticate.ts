@@ -8,6 +8,17 @@ import { loadSapAssets } from "./sap/assets";
 import type { SapSigner } from "./sap/signer";
 import i18n from "../i18n";
 
+function hardwareIdBytes(deviceId: string): Uint8Array {
+  if (!/^[0-9a-fA-F]{12}$/.test(deviceId)) {
+    throw new Error("Device identifier must be 12 hexadecimal characters");
+  }
+  const bytes = new Uint8Array(6);
+  for (let i = 0; i < bytes.length; i++) {
+    bytes[i] = Number.parseInt(deviceId.slice(i * 2, i * 2 + 2), 16);
+  }
+  return bytes;
+}
+
 export class AuthenticationError extends Error {
   constructor(
     message: string,
@@ -49,7 +60,7 @@ export async function authenticate(
     const assets = await loadSapAssets();
     sapSigner = await createSapSigner({
       ...bag.sapEndpoints,
-      hardwareID: new TextEncoder().encode(deviceId),
+      hardwareID: hardwareIdBytes(deviceId),
       assets,
     });
 
