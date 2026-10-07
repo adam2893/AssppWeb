@@ -47,8 +47,11 @@ function escapeXml(s: string): string {
 export function parsePlist(xml: string): any {
   const doc = new DOMParser().parseFromString(xml, "text/xml");
   const root = doc.documentElement;
-  if (root.nodeName !== "plist") {
-    throw new Error("Invalid plist: root element is not <plist>");
+  if (!root || root.nodeName !== "plist") {
+    const preview = xml.slice(0, 240).replace(/\s+/g, " ").trim();
+    throw new Error(
+      `Invalid plist: root element is not <plist> (got <${root?.nodeName ?? "none"}>): ${preview}`,
+    );
   }
   const firstChild = root.firstElementChild;
   if (!firstChild) {

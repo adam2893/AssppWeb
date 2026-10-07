@@ -123,7 +123,14 @@ export async function authenticate(
         continue;
       }
 
-      // Handle non-plist responses (e.g. 403 with empty body)
+      if (response.status < 200 || response.status >= 300) {
+        const preview = response.body.slice(0, 240).replace(/\s+/g, " ").trim();
+        throw new Error(
+          `Apple authentication returned HTTP ${response.status}: ${preview}`,
+        );
+      }
+
+      // Handle non-plist responses (e.g. 204 with an empty body)
       if (!response.body.trim()) {
         // Apple still advertises the legacy buy endpoint in some bags. A POST
         // to that endpoint can return an empty 204 instead of the auth plist.
