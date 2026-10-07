@@ -53,11 +53,6 @@ export async function authenticate(
       assets,
     });
 
-    // SAP signing is supported by the native auth endpoint. Do not spend a
-    // request on the legacy buy endpoint: it can hang or return a redirect
-    // without a Location header even though the bag advertises SAP.
-    requestHost = "auth.itunes.apple.com";
-    requestPath = `/auth/v1/native/fast?guid=${encodeURIComponent(deviceId)}`;
   }
 
   let currentAttempt = 0;
