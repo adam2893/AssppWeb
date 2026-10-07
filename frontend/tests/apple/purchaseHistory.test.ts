@@ -293,6 +293,57 @@ describe("apple/purchaseHistory", () => {
       expect(result.apps[1].purchaseDate).toBeGreaterThanOrEqual(result.apps[2].purchaseDate);
     });
 
+    it("does not return a partial list when the second storefront is rejected (F-B)", async () => {
+      // Storefront 34 returns two apps; storefront 13 then answers 401. The
+      // whole load must fail: merging the storefront that succeeded would return
+      // a list that looks authoritative but is missing every macOS app, which is
+      // indistinguishable from "you own fewer apps".
+      const callSequence = [
+        makeMockResponse(buildLoginBuffer(100)),
+        makeMockResponse(buildUpdateBuffer(200)),
+        makeMockResponse(
+          buildItemsBuffer(200, [
+            {
+              adamId: 1,
+              bundleId: "com.example.one",
+              name: "One",
+              version: "1.0",
+              purchaseDate: 1700000001,
+              mediaKind: 131072,
+              platformBitmask: 1,
+            },
+            {
+              adamId: 2,
+              bundleId: "com.example.two",
+              name: "Two",
+              version: "2.0",
+              purchaseDate: 1700000002,
+              mediaKind: 131072,
+              platformBitmask: 2,
+            },
+          ]),
+        ),
+        // Storefront 13: login and update succeed, then /items is rejected.
+        makeMockResponse(buildLoginBuffer(101)),
+        makeMockResponse(buildUpdateBuffer(201)),
+        makeMockResponse(new Uint8Array(0), 401),
+      ];
+      let callIndex = 0;
+      vi.mocked(appleRequest).mockImplementation(async () => callSequence[callIndex++]);
+
+      const outcome = await fetchOwnedApps(mockAccount).then(
+        (result) => ({ result }),
+        (error: unknown) => ({ error }),
+      );
+
+      // No `result` key at all: a rejected load must not hand back the apps
+      // that storefront 34 returned.
+      expect(outcome).toEqual({ error: expect.any(DaapAuthError) });
+      // All six calls were made, so this is the second storefront's failure and
+      // not an early bail-out.
+      expect(callIndex).toBe(6);
+    });
+
     it("should retry on 401/403 by throwing DaapAuthError", async () => {
       // Return 401 on the items call
       const loginBuf = buildLoginBuffer(100);

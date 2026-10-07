@@ -169,10 +169,12 @@ export default function ProductDetail() {
               <span className="rounded-full bg-gray-100 px-3 py-1 dark:bg-gray-800">
                 v{app.version}
               </span>
-              <span>
-                ★ {app.averageUserRating.toFixed(1)} ({app.userRatingCount}{" "}
-                {t("search.product.ratings")})
-              </span>
+              {app.averageUserRating > 0 && (
+                <span>
+                  ★ {app.averageUserRating.toFixed(1)} ({app.userRatingCount}{" "}
+                  {t("search.product.ratings")})
+                </span>
+              )}
             </div>
           </div>
         </section>

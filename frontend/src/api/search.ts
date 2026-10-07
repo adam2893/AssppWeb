@@ -45,12 +45,25 @@ function entityToPlatformId(entity: string): PlatformId {
   }
 }
 
+/**
+ * Look up a single app.
+ *
+ * `identifier` is either a numeric iTunes id (what the `/search/:appId` route
+ * carries) or a bundle id. Bundle ids are reverse-DNS and never purely numeric,
+ * so the two cannot be confused — and iTunes honours only one of `id` /
+ * `bundleId`, returning no results for the other.
+ */
 export async function lookupApp(
-  bundleId: string,
+  identifier: string,
   country: string,
   platform?: PlatformId,
 ): Promise<Software | null> {
-  const params = new URLSearchParams({ bundleId, country });
+  const params = new URLSearchParams({ country });
+  if (/^\d+$/.test(identifier)) {
+    params.set("id", identifier);
+  } else {
+    params.set("bundleId", identifier);
+  }
   if (platform) {
     params.set("entity", PLATFORMS[platform].lookupEntity);
   }
