@@ -74,10 +74,7 @@ export async function authenticate(
       const plistBody = buildPlist(body);
 
       const headers: Record<string, string> = {
-        // Apple parses the XML plist payload as an x-www-form-urlencoded
-        // authentication request. This is the native client's wire format.
         "Content-Type": "application/x-www-form-urlencoded",
-        Accept: "application/x-apple-plist",
       };
 
       if (sapSigner) {
@@ -117,12 +114,6 @@ export async function authenticate(
       if ([301, 302, 303, 307, 308].includes(response.status)) {
         const location = response.headers["location"];
         if (!location) {
-          if (sapSigner && requestHost === "buy.itunes.apple.com") {
-            requestHost = "auth.itunes.apple.com";
-            requestPath = `/auth/v1/native/fast?guid=${encodeURIComponent(deviceId)}`;
-            currentAttempt--;
-            continue;
-          }
           throw new Error(i18n.t("errors.auth.redirectLocation"));
         }
         const url = new URL(location);
@@ -142,20 +133,6 @@ export async function authenticate(
 
       // Handle non-plist responses (e.g. 204 with an empty body)
       if (!response.body.trim()) {
-        // Apple still advertises the legacy buy endpoint in some bags. A POST
-        // to that endpoint can return an empty 204 instead of the auth plist.
-        // When SAP is available, retry once against the native endpoint; the
-        // existing signer will add the required action signature.
-        if (
-          response.status === 204 &&
-          sapSigner &&
-          requestHost === "buy.itunes.apple.com"
-        ) {
-          requestHost = "auth.itunes.apple.com";
-          requestPath = `/auth/v1/native/fast?guid=${encodeURIComponent(deviceId)}`;
-          currentAttempt--;
-          continue;
-        }
         throw new Error(
           `${i18n.t("errors.auth.emptyBody", { status: response.status })} ` +
             `(host=${requestHost}, sap=${sapSigner ? "enabled" : "disabled"})`,
