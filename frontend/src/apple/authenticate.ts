@@ -74,6 +74,7 @@ export async function authenticate(
 
       const headers: Record<string, string> = {
         "Content-Type": "application/x-apple-plist",
+        Accept: "application/x-apple-plist",
       };
 
       if (sapSigner) {
@@ -147,7 +148,8 @@ export async function authenticate(
           continue;
         }
         throw new Error(
-          i18n.t("errors.auth.emptyBody", { status: response.status }),
+          `${i18n.t("errors.auth.emptyBody", { status: response.status })} ` +
+            `(host=${requestHost}, sap=${sapSigner ? "enabled" : "disabled"})`,
         );
       }
 
