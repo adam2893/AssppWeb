@@ -29,7 +29,7 @@ describe("apple/bag", () => {
     const result = await fetchBag("aabbccddeeff");
 
     expect(result.authURL).toBe(
-      "https://auth.itunes.apple.com/auth/v1/native/fast/",
+      "https://buy.itunes.apple.com/WebObjects/MZFinance.woa/wa/authenticate",
     );
   });
 
@@ -106,12 +106,10 @@ describe("apple/bag", () => {
       ).toBe("https://auth.itunes.apple.com/auth/v1/native/fast/");
     });
 
-    it("normalizes Apple's legacy buy auth endpoint", () => {
+    it("leaves legacy endpoints on other hosts unchanged", () => {
       const legacy =
         "https://buy.itunes.apple.com/WebObjects/MZFinance.woa/wa/authenticate";
-      expect(normalizeAuthURL(legacy)).toBe(
-        "https://auth.itunes.apple.com/auth/v1/native/fast/",
-      );
+      expect(normalizeAuthURL(legacy)).toBe(legacy);
     });
   });
 });
