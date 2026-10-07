@@ -32,7 +32,7 @@ export function normalizeAuthURL(rawURL: string): string {
   if (!path.endsWith("/fast")) {
     path += "/fast";
   }
-  url.pathname = `${path}/`;
+  url.pathname = path;
   return url.toString();
 }
 

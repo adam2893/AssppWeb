@@ -57,7 +57,7 @@ export async function authenticate(
     // request on the legacy buy endpoint: it can hang or return a redirect
     // without a Location header even though the bag advertises SAP.
     requestHost = "auth.itunes.apple.com";
-    requestPath = `/auth/v1/native/fast/?guid=${encodeURIComponent(deviceId)}`;
+    requestPath = `/auth/v1/native/fast?guid=${encodeURIComponent(deviceId)}`;
   }
 
   let currentAttempt = 0;
@@ -122,7 +122,7 @@ export async function authenticate(
         if (!location) {
           if (sapSigner && requestHost === "buy.itunes.apple.com") {
             requestHost = "auth.itunes.apple.com";
-            requestPath = `/auth/v1/native/fast/?guid=${encodeURIComponent(deviceId)}`;
+            requestPath = `/auth/v1/native/fast?guid=${encodeURIComponent(deviceId)}`;
             currentAttempt--;
             continue;
           }
@@ -155,7 +155,7 @@ export async function authenticate(
           requestHost === "buy.itunes.apple.com"
         ) {
           requestHost = "auth.itunes.apple.com";
-          requestPath = `/auth/v1/native/fast/?guid=${encodeURIComponent(deviceId)}`;
+          requestPath = `/auth/v1/native/fast?guid=${encodeURIComponent(deviceId)}`;
           currentAttempt--;
           continue;
         }

@@ -48,7 +48,7 @@ describe("apple/bag", () => {
     const result = await fetchBag("aabbccddeeff");
 
     expect(result.authURL).toBe(
-      "https://auth.itunes.apple.com/auth/v1/native/fast/",
+      "https://auth.itunes.apple.com/auth/v1/native/fast",
     );
   });
 
@@ -91,19 +91,19 @@ describe("apple/bag", () => {
     it("appends /fast/ to a bare native auth endpoint", () => {
       expect(
         normalizeAuthURL("https://auth.itunes.apple.com/auth/v1/native"),
-      ).toBe("https://auth.itunes.apple.com/auth/v1/native/fast/");
+      ).toBe("https://auth.itunes.apple.com/auth/v1/native/fast");
     });
 
     it("adds the trailing slash when /fast is already present", () => {
       expect(
         normalizeAuthURL("https://auth.itunes.apple.com/auth/v1/native/fast"),
-      ).toBe("https://auth.itunes.apple.com/auth/v1/native/fast/");
+      ).toBe("https://auth.itunes.apple.com/auth/v1/native/fast");
     });
 
     it("is idempotent on an already-normalized endpoint", () => {
       expect(
         normalizeAuthURL("https://auth.itunes.apple.com/auth/v1/native/fast/"),
-      ).toBe("https://auth.itunes.apple.com/auth/v1/native/fast/");
+      ).toBe("https://auth.itunes.apple.com/auth/v1/native/fast");
     });
 
     it("leaves legacy endpoints on other hosts unchanged", () => {
