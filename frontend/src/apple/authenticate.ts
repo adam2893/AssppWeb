@@ -2,7 +2,7 @@ import type { Account, Cookie } from "../types";
 import { appleRequest } from "./request";
 import { buildPlist, parsePlist } from "./plist";
 import { extractAndMergeCookies } from "./cookies";
-import { fetchBag, defaultAuthURL } from "./bag";
+import { fetchBag, defaultAuthURL, normalizeAuthURL } from "./bag";
 import { createSapSigner } from "./sap/client";
 import { loadSapAssets } from "./sap/assets";
 import type { SapSigner } from "./sap/signer";
@@ -29,6 +29,51 @@ export class AuthenticationError extends Error {
   }
 }
 
+const MAX_AUTH_ATTEMPTS = 3;
+const MAX_REDIRECTS = 3;
+const AUTH_RETRY_DELAY_MS = 10_000;
+const MAX_AUTH_RETRY_DELAY_MS = 30_000;
+
+function isTransientAuthStatus(status: number): boolean {
+  return (
+    status === 204 ||
+    status === 404 ||
+    status === 429 ||
+    (status >= 500 && status < 600)
+  );
+}
+
+function retryAfterDelay(
+  responseHeaders: Record<string, string>,
+  retryNumber: number,
+): number {
+  const retryAfter =
+    responseHeaders["retry-after"] ?? responseHeaders["Retry-After"];
+  if (retryAfter) {
+    const seconds = Number.parseInt(retryAfter, 10);
+    if (Number.isFinite(seconds) && seconds >= 0) {
+      return Math.min(seconds * 1000, MAX_AUTH_RETRY_DELAY_MS);
+    }
+
+    const retryAt = Date.parse(retryAfter);
+    if (Number.isFinite(retryAt)) {
+      return Math.min(
+        Math.max(0, retryAt - Date.now()),
+        MAX_AUTH_RETRY_DELAY_MS,
+      );
+    }
+  }
+
+  return Math.min(
+    AUTH_RETRY_DELAY_MS * 2 ** retryNumber,
+    MAX_AUTH_RETRY_DELAY_MS,
+  );
+}
+
+function waitForRetry(delayMs: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, delayMs));
+}
+
 export async function authenticate(
   email: string,
   password: string,
@@ -47,7 +92,14 @@ export async function authenticate(
   let requestPath = `${defaultAuthEndpoint.pathname}${defaultAuthEndpoint.search}`;
 
   const bag = await fetchBag(guid);
-  const authEndpoint = new URL(bag.authURL);
+  // fetchBag normalizes advertised URLs. Keep the fallback native endpoint's
+  // established trailing slash while also handling callers that provide a
+  // legacy bag URL directly.
+  const authURL =
+    bag.authURL === defaultAuthURL
+      ? bag.authURL
+      : normalizeAuthURL(bag.authURL);
+  const authEndpoint = new URL(authURL);
   authEndpoint.searchParams.set("guid", guid);
   requestHost = authEndpoint.hostname;
   requestPath = `${authEndpoint.pathname}${authEndpoint.search}`;
@@ -70,7 +122,7 @@ export async function authenticate(
   let currentAttempt = 0;
   let redirectAttempt = 0;
 
-  while (currentAttempt < 2 && redirectAttempt <= 3) {
+  while (currentAttempt < MAX_AUTH_ATTEMPTS && redirectAttempt <= MAX_REDIRECTS) {
     currentAttempt++;
 
     try {
@@ -121,6 +173,14 @@ export async function authenticate(
       const podHeader = response.headers["pod"];
       const pod = podHeader || undefined;
 
+      if (
+        isTransientAuthStatus(response.status) &&
+        currentAttempt < MAX_AUTH_ATTEMPTS
+      ) {
+        await waitForRetry(retryAfterDelay(response.headers, currentAttempt - 1));
+        continue;
+      }
+
       // Handle redirect. The native /fast auth host can answer with 301 as
       // well as the usual 302, so follow the full set of redirect statuses.
       if ([301, 302, 303, 307, 308].includes(response.status)) {
@@ -128,9 +188,11 @@ export async function authenticate(
         if (!location) {
           throw new Error(i18n.t("errors.auth.redirectLocation"));
         }
-        const url = new URL(location);
-        requestHost = url.hostname;
-        requestPath = url.pathname + url.search;
+        const currentURL = new URL(`https://${requestHost}${requestPath}`);
+        const url = new URL(location, currentURL);
+        const normalizedURL = new URL(normalizeAuthURL(url.toString()));
+        requestHost = normalizedURL.hostname;
+        requestPath = normalizedURL.pathname + normalizedURL.search;
         currentAttempt--;
         redirectAttempt++;
         continue;

@@ -474,6 +474,8 @@
       "invalidSinf": "Недействительный элемент sinf",
       "noSinf": "Загрузка завершена, но часть данных, необходимых для установки приложения, отсутствует, поэтому этот файл может не установиться. Попробуйте скачать его снова; если установка всё равно не удаётся, сначала получите лицензию на это приложение для этого аккаунта.",
       "tooManyRedirects": "Слишком много перенаправлений",
+      "versionLookupFailed": "Unable to resolve the latest iOS version in this account’s storefront. Check app availability in that region.",
+      "unexpectedItem": "Apple returned a different app or version; download stopped.",
       "missingInfoPlist": "IPA не содержит Info.plist",
       "missingSupportedPlatforms": "В IPA отсутствует CFBundleSupportedPlatforms",
       "platformMismatch": "Несоответствие платформы IPA: ожидалось {{expected}}, найдено {{actual}}",

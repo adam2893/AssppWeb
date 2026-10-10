@@ -2,10 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildPlist } from "../../src/apple/plist";
 import { getDownloadInfo, DownloadError } from "../../src/apple/download";
 import { appleRequest } from "../../src/apple/request";
+import { fetchBag } from "../../src/apple/bag";
 import type { Account, Software } from "../../src/types";
 
 vi.mock("../../src/apple/request", () => ({
   appleRequest: vi.fn(),
+}));
+vi.mock("../../src/apple/bag", () => ({
+  fetchBag: vi.fn(),
 }));
 
 const mockAccount: Account = {
@@ -57,6 +61,9 @@ function successResponse(overrides?: {
           bundleShortVersionString:
             overrides?.bundleShortVersionString ?? "1.0",
           bundleVersion: overrides?.bundleVersion ?? "1.0.0",
+          itemId: mockApp.id,
+          softwareVersionExternalIdentifier: "12345",
+          softwareVersionBundleId: mockApp.bundleID,
           appleId: "test@example.com",
         },
         sinfs: overrides?.sinfs ?? [
@@ -65,6 +72,29 @@ function successResponse(overrides?: {
       },
     ],
   });
+}
+
+function catalogResponse(version = "12345"): {
+  status: number;
+  statusText: string;
+  headers: Record<string, string>;
+  rawHeaders: [string, string][];
+  body: string;
+} {
+  return {
+    status: 200,
+    statusText: "OK",
+    headers: {},
+    rawHeaders: [],
+    body: JSON.stringify({
+      results: {
+        [mockApp.id]: {
+          bundleId: mockApp.bundleID,
+          offers: [{ version: { externalId: version } }],
+        },
+      },
+    }),
+  };
 }
 
 function failureResponse(failureType: string, customerMessage?: string): string {
@@ -85,7 +115,12 @@ function noSongListResponse(): string {
 
 describe("apple/download", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+    vi.mocked(fetchBag).mockResolvedValue({
+      authURL: "",
+      updateURL:
+        "https://downloaddispatch.itunes.apple.com/up/updateProduct",
+    });
   });
 
   describe("Item #7 — empty sinfs", () => {
@@ -150,6 +185,7 @@ describe("apple/download", () => {
           rawHeaders: [],
           body: failureResponse("5002"),
         })
+        .mockResolvedValueOnce(catalogResponse())
         .mockResolvedValueOnce({
           status: 200,
           statusText: "OK",
@@ -163,14 +199,14 @@ describe("apple/download", () => {
       expect(result.output.downloadURL).toBe(
         "https://example.com/download.ipa",
       );
-      expect(vi.mocked(appleRequest)).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(appleRequest)).toHaveBeenCalledTimes(3);
 
       // First call should be volumeStore (pod host)
       const firstCall = vi.mocked(appleRequest).mock.calls[0][0];
       expect(firstCall.host).toContain("buy.itunes.apple.com");
 
       // Second call should be redownload (downloaddispatch, /r/redownload)
-      const secondCall = vi.mocked(appleRequest).mock.calls[1][0];
+      const secondCall = vi.mocked(appleRequest).mock.calls[2][0];
       expect(secondCall.host).toBe("downloaddispatch.itunes.apple.com");
       expect(secondCall.path).toContain("/r/redownload");
     });
@@ -184,6 +220,7 @@ describe("apple/download", () => {
           rawHeaders: [],
           body: emptySongListResponse(),
         })
+        .mockResolvedValueOnce(catalogResponse())
         .mockResolvedValueOnce({
           status: 200,
           statusText: "OK",
@@ -197,9 +234,9 @@ describe("apple/download", () => {
       expect(result.output.downloadURL).toBe(
         "https://example.com/download.ipa",
       );
-      expect(vi.mocked(appleRequest)).toHaveBeenCalledTimes(2);
+      expect(vi.mocked(appleRequest)).toHaveBeenCalledTimes(3);
 
-      const secondCall = vi.mocked(appleRequest).mock.calls[1][0];
+      const secondCall = vi.mocked(appleRequest).mock.calls[2][0];
       expect(secondCall.host).toBe("downloaddispatch.itunes.apple.com");
       expect(secondCall.path).toContain("/r/redownload");
     });
@@ -216,12 +253,13 @@ describe("apple/download", () => {
           rawHeaders: [],
           body: failureResponse("5002"),
         })
+        .mockResolvedValueOnce(catalogResponse())
         .mockResolvedValueOnce({
-          status: 200,
-          statusText: "OK",
+          status: 500,
+          statusText: "Internal Server Error",
           headers: {},
           rawHeaders: [],
-          body: emptySongListResponse(),
+          body: "",
         })
         .mockResolvedValueOnce({
           status: 200,
@@ -236,21 +274,30 @@ describe("apple/download", () => {
       expect(result.output.downloadURL).toBe(
         "https://example.com/download.ipa",
       );
-      expect(vi.mocked(appleRequest)).toHaveBeenCalledTimes(3);
+      expect(vi.mocked(appleRequest)).toHaveBeenCalledTimes(4);
 
-      const thirdCall = vi.mocked(appleRequest).mock.calls[2][0];
+      const thirdCall = vi.mocked(appleRequest).mock.calls[3][0];
       expect(thirdCall.host).toBe("downloaddispatch.itunes.apple.com");
       expect(thirdCall.path).toContain("/up/updateProduct");
     });
 
     it("throws noItems when all three endpoints return empty songList", async () => {
-      vi.mocked(appleRequest).mockResolvedValue({
-        status: 200,
-        statusText: "OK",
-        headers: {},
-        rawHeaders: [],
-        body: emptySongListResponse(),
-      });
+      vi.mocked(appleRequest)
+        .mockResolvedValueOnce({
+          status: 200,
+          statusText: "OK",
+          headers: {},
+          rawHeaders: [],
+          body: emptySongListResponse(),
+        })
+        .mockResolvedValueOnce(catalogResponse())
+        .mockResolvedValue({
+          status: 200,
+          statusText: "OK",
+          headers: {},
+          rawHeaders: [],
+          body: emptySongListResponse(),
+        });
 
       await expect(
         getDownloadInfo(mockAccount, mockApp),
@@ -261,13 +308,22 @@ describe("apple/download", () => {
     });
 
     it("throws noItems when all three endpoints return no songList key", async () => {
-      vi.mocked(appleRequest).mockResolvedValue({
-        status: 200,
-        statusText: "OK",
-        headers: {},
-        rawHeaders: [],
-        body: noSongListResponse(),
-      });
+      vi.mocked(appleRequest)
+        .mockResolvedValueOnce({
+          status: 200,
+          statusText: "OK",
+          headers: {},
+          rawHeaders: [],
+          body: noSongListResponse(),
+        })
+        .mockResolvedValueOnce(catalogResponse())
+        .mockResolvedValue({
+          status: 200,
+          statusText: "OK",
+          headers: {},
+          rawHeaders: [],
+          body: noSongListResponse(),
+        });
 
       await expect(
         getDownloadInfo(mockAccount, mockApp),
@@ -305,11 +361,11 @@ describe("apple/download", () => {
           body: failureResponse("5002"),
         })
         .mockResolvedValueOnce({
-          status: 200,
-          statusText: "OK",
+          status: 500,
+          statusText: "Internal Server Error",
           headers: {},
           rawHeaders: [],
-          body: failureResponse("5002"),
+          body: "",
         })
         .mockResolvedValueOnce({
           status: 200,

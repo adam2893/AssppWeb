@@ -474,6 +474,8 @@
       "invalidSinf": "Invalid sinf item",
       "noSinf": "The download finished, but a part needed to install the app was missing. Try downloading it again — if it still won't install, get a license for this app with this account first.",
       "tooManyRedirects": "Too many redirects",
+      "versionLookupFailed": "Unable to resolve the latest iOS version in this account’s storefront. Check app availability in that region.",
+      "unexpectedItem": "Apple returned a different app or version; download stopped.",
       "missingInfoPlist": "IPA does not contain an Info.plist",
       "missingSupportedPlatforms": "IPA is missing CFBundleSupportedPlatforms",
       "platformMismatch": "IPA platform mismatch: expected {{expected}}, found {{actual}}",

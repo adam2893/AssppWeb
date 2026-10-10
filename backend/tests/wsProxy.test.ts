@@ -3,6 +3,7 @@ import { createServer, Server } from "http";
 import net from "net";
 import { WebSocket } from "ws";
 import express from "express";
+import { server as wisp } from "@mercuryworkshop/wisp-js/server";
 import { setupWsProxy } from "../src/services/wsProxy.js";
 
 let httpServer: Server | null = null;
@@ -33,6 +34,15 @@ async function stopServer() {
 describe("Wisp Proxy", () => {
   afterEach(async () => {
     await stopServer();
+  });
+
+  it("allowlists the public MZStorePlatform catalog host", () => {
+    const allowlist = wisp.options.hostname_whitelist ?? [];
+    expect(
+      allowlist.some(
+        (pattern) => pattern.source === "^uclient-api\\.itunes\\.apple\\.com$",
+      ),
+    ).toBe(true);
   });
 
   it("should accept WebSocket connections on /wisp/ path", async () => {

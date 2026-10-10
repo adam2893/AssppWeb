@@ -29,7 +29,7 @@ describe("apple/bag", () => {
     const result = await fetchBag("aabbccddeeff");
 
     expect(result.authURL).toBe(
-      "https://buy.itunes.apple.com/WebObjects/MZFinance.woa/wa/authenticate",
+      "https://buy.itunes.apple.com/WebObjects/MZFinance.woa/wa/authenticate/",
     );
   });
 
@@ -56,6 +56,8 @@ describe("apple/bag", () => {
     const xml = buildPlist({
       urlBag: {
         Ghostrider: "YES",
+        updateProduct:
+          "https://downloaddispatch.itunes.apple.com/up/updateProduct",
       },
     });
     vi.stubGlobal(
@@ -69,6 +71,9 @@ describe("apple/bag", () => {
     const result = await fetchBag("aabbccddeeff");
 
     expect(result.authURL).toBe(defaultAuthURL);
+    expect(result.updateURL).toBe(
+      "https://downloaddispatch.itunes.apple.com/up/updateProduct",
+    );
   });
 
   it("falls back when bag proxy returns non-OK", async () => {
@@ -106,9 +111,24 @@ describe("apple/bag", () => {
       ).toBe("https://auth.itunes.apple.com/auth/v1/native/fast");
     });
 
-    it("leaves legacy endpoints on other hosts unchanged", () => {
+    it("adds the trailing slash to a legacy buy endpoint", () => {
       const legacy =
         "https://buy.itunes.apple.com/WebObjects/MZFinance.woa/wa/authenticate";
+      expect(normalizeAuthURL(legacy)).toBe(`${legacy}/`);
+    });
+
+    it("normalizes pod legacy endpoints while preserving queries", () => {
+      expect(
+        normalizeAuthURL(
+          "https://p25-buy.itunes.apple.com/WebObjects/MZFinance.woa/wa/authenticate?foo=1&guid=old",
+        ),
+      ).toBe(
+        "https://p25-buy.itunes.apple.com/WebObjects/MZFinance.woa/wa/authenticate/?foo=1&guid=old",
+      );
+    });
+
+    it("leaves unrelated endpoints unchanged", () => {
+      const legacy = "https://example.com/WebObjects/MZFinance.woa/wa/authenticate";
       expect(normalizeAuthURL(legacy)).toBe(legacy);
     });
   });

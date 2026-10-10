@@ -474,6 +474,8 @@
       "invalidSinf": "잘못된 sinf 항목입니다",
       "noSinf": "다운로드는 완료되었지만 앱을 설치하는 데 필요한 데이터가 누락되어 이 파일이 설치되지 않을 수 있습니다. 다시 다운로드해 보세요. 그래도 설치되지 않으면 먼저 이 계정으로 이 앱의 라이선스를 받으세요.",
       "tooManyRedirects": "리디렉션이 너무 많습니다",
+      "versionLookupFailed": "Unable to resolve the latest iOS version in this account’s storefront. Check app availability in that region.",
+      "unexpectedItem": "Apple returned a different app or version; download stopped.",
       "missingInfoPlist": "IPA에 Info.plist가 없습니다",
       "missingSupportedPlatforms": "IPA에 CFBundleSupportedPlatforms가 없습니다",
       "platformMismatch": "IPA 플랫폼 불일치: 예상 {{expected}}, 실제 {{actual}}",

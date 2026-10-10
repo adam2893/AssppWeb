@@ -474,6 +474,8 @@
       "invalidSinf": "無效的 sinf 項目",
       "noSinf": "下載已完成，但缺少安裝應用程式所需的部分資料，此檔案可能無法安裝。請重新下載；若仍無法安裝，請先以此帳號取得此應用程式的授權。",
       "tooManyRedirects": "重新導向次數過多",
+      "versionLookupFailed": "無法查詢帳號所在商店的最新 iOS 版本，請確認應用在該地區可用。",
+      "unexpectedItem": "Apple 回傳的應用或版本與請求不符，已停止下載。",
       "missingInfoPlist": "IPA 不包含 Info.plist",
       "missingSupportedPlatforms": "IPA 缺少 CFBundleSupportedPlatforms",
       "platformMismatch": "IPA 平台不匹配：預期 {{expected}}，實際 {{actual}}",

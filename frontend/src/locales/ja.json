@@ -474,6 +474,8 @@
       "invalidSinf": "無効な sinf 項目です",
       "noSinf": "ダウンロードは完了しましたが、アプリのインストールに必要なデータが欠けていたため、このファイルはインストールできない可能性があります。もう一度ダウンロードしてください。それでもインストールできない場合は、先にこのアカウントでこのアプリのライセンスを取得してください。",
       "tooManyRedirects": "リダイレクトが多すぎます",
+      "versionLookupFailed": "Unable to resolve the latest iOS version in this account’s storefront. Check app availability in that region.",
+      "unexpectedItem": "Apple returned a different app or version; download stopped.",
       "missingInfoPlist": "IPA に Info.plist が含まれていません",
       "missingSupportedPlatforms": "IPA に CFBundleSupportedPlatforms がありません",
       "platformMismatch": "IPA プラットフォーム不一致: 期待 {{expected}}、実際 {{actual}}",

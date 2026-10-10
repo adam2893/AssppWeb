@@ -125,7 +125,7 @@ describe("apple/purchaseHistory", () => {
     vi.clearAllMocks();
 
     vi.mocked(fetchBag).mockResolvedValue({
-      authURL: "https://auth.itunes.apple.com/auth/v1/native/fast/",
+      authURL: "https://auth.itunes.apple.com/auth/v1/native/fast",
       sapEndpoints: {
         certificateURL: "https://setup-ck.cert.apple.com/cert",
         setupURL: "https://setup-ck.setup.apple.com/setup",

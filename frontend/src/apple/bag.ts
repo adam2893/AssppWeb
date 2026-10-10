@@ -4,20 +4,29 @@ import type { SapEndpoints } from "./sap/types";
 
 export interface BagOutput {
   authURL: string;
+  /** Apple's updateProduct endpoint used by download recovery. */
+  updateURL?: string;
   /** Present when the bag advertises the SAP signing protocol. */
   sapEndpoints?: SapEndpoints;
 }
 
 export const defaultAuthURL =
-  "https://auth.itunes.apple.com/auth/v1/native/fast/";
+  "https://auth.itunes.apple.com/auth/v1/native/fast";
 
 const NATIVE_AUTH_HOST = "auth.itunes.apple.com";
+const LEGACY_AUTH_PATH = "/WebObjects/MZFinance.woa/wa/authenticate";
+
+function isLegacyAuthHost(hostname: string): boolean {
+  return (
+    hostname === "buy.itunes.apple.com" ||
+    /^p\d+-buy\.itunes\.apple\.com$/.test(hostname)
+  );
+}
 
 // The bag advertises the native auth endpoint without the /fast/ sub-path that
 // the login flow requires; the no-trailing-slash variant 301s to an HTML page.
-// The bag may advertise the native endpoint without the /fast/ sub-path that
-// the login flow requires; the no-trailing-slash variant 301s to an HTML page.
-// Legacy endpoints on other hosts pass through unchanged.
+// Legacy endpoints need a trailing slash to avoid Apple's redirect to an HTML
+// page. Keep the rest of the URL (including its query string) untouched.
 export function normalizeAuthURL(rawURL: string): string {
   let url: URL;
   try {
@@ -26,6 +35,13 @@ export function normalizeAuthURL(rawURL: string): string {
     return rawURL;
   }
   if (url.hostname !== NATIVE_AUTH_HOST) {
+    if (
+      isLegacyAuthHost(url.hostname) &&
+      url.pathname === LEGACY_AUTH_PATH
+    ) {
+      url.pathname = `${LEGACY_AUTH_PATH}/`;
+      return url.toString();
+    }
     return rawURL;
   }
   let path = url.pathname.replace(/\/+$/, "");
@@ -66,6 +82,8 @@ export async function fetchBag(deviceId: string): Promise<BagOutput> {
       (dict[key] as string | undefined) ??
       (urlBag?.[key] as string | undefined);
 
+    const updateURL = bagValue("updateProduct");
+
     const setupURL = bagValue("sign-sap-setup");
     const certificateURL = bagValue("sign-sap-setup-cert");
     const versionText = bagValue("sign-sap-version");
@@ -81,10 +99,10 @@ export async function fetchBag(deviceId: string): Promise<BagOutput> {
       console.warn(
         "[Bag] authenticateAccount URL not found in bag, using default auth endpoint",
       );
-      return { authURL: defaultAuthURL, sapEndpoints };
+      return { authURL: defaultAuthURL, updateURL, sapEndpoints };
     }
 
-    return { authURL: normalizeAuthURL(authURL), sapEndpoints };
+    return { authURL: normalizeAuthURL(authURL), updateURL, sapEndpoints };
   } catch (error) {
     console.warn(
       `[Bag] Failed to fetch/parse bag, using default auth endpoint: ${
