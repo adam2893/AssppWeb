@@ -3,9 +3,15 @@ import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import PageContainer from "../Layout/PageContainer";
 import Spinner from "../common/Spinner";
+import AuthDiagnostics from "./AuthDiagnostics";
 import { useAccounts } from "../../hooks/useAccounts";
 import { useToastStore } from "../../store/toast";
-import { authenticate, AuthenticationError } from "../../apple/authenticate";
+import {
+  authenticate,
+  AuthenticationError,
+  createInitialAuthenticationDiagnostics,
+  type AuthenticationDiagnostics,
+} from "../../apple/authenticate";
 import { getErrorMessage } from "../../utils/error";
 import { generateDeviceId } from "../../apple/config";
 
@@ -21,12 +27,15 @@ export default function AddAccountForm() {
   const [deviceId, setDeviceId] = useState(() => generateDeviceId());
   const [needsCode, setNeedsCode] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [diagnostics, setDiagnostics] =
+    useState<AuthenticationDiagnostics | null>(null);
   const inputClassName =
     "block min-h-11 w-full min-w-0 max-w-full rounded-xl border-0 bg-gray-100 px-3 py-2 text-base text-gray-900 focus:ring-2 focus:ring-blue-500/40 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-gray-800 dark:text-white";
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
+    setDiagnostics(createInitialAuthenticationDiagnostics());
 
     try {
       const cleanedDeviceId = deviceId.replace(/[: ]/g, "");
@@ -38,6 +47,7 @@ export default function AddAccountForm() {
         needsCode && code ? code : undefined,
         undefined,
         cleanedDeviceId,
+        setDiagnostics,
       );
       await addAccount(account);
       addToast(t("accounts.addForm.addSuccess"), "success");
@@ -157,6 +167,8 @@ export default function AddAccountForm() {
               </div>
             )}
           </section>
+
+          {diagnostics && <AuthDiagnostics diagnostics={diagnostics} />}
 
           <div className="grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:items-center">
             <button

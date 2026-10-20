@@ -10,7 +10,10 @@ export interface AppleRequestOptions {
   headers?: Record<string, string>;
   body?: string;
   cookies?: Cookie[];
+  onWispStateChange?: (state: WispConnectionState) => void;
 }
+
+export type WispConnectionState = "initializing" | "ready" | "failed";
 
 export interface AppleResponse {
   status: number;
@@ -25,7 +28,14 @@ export interface AppleResponse {
 export async function appleRequest(
   opts: AppleRequestOptions,
 ): Promise<AppleResponse> {
-  await initLibcurl();
+  opts.onWispStateChange?.("initializing");
+  try {
+    await initLibcurl();
+    opts.onWispStateChange?.("ready");
+  } catch (error) {
+    opts.onWispStateChange?.("failed");
+    throw error;
+  }
 
   const url = `https://${opts.host}${opts.path}`;
   const headers: Record<string, string> = {

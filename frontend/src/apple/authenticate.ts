@@ -1,5 +1,5 @@
 import type { Account, Cookie } from "../types";
-import { appleRequest } from "./request";
+import { appleRequest, type WispConnectionState } from "./request";
 import { buildPlist, parsePlist } from "./plist";
 import { extractAndMergeCookies } from "./cookies";
 import { fetchBag, defaultAuthURL, normalizeAuthURL } from "./bag";
@@ -33,6 +33,37 @@ const MAX_AUTH_ATTEMPTS = 3;
 const MAX_REDIRECTS = 3;
 const AUTH_RETRY_DELAY_MS = 10_000;
 const MAX_AUTH_RETRY_DELAY_MS = 30_000;
+
+export interface AuthenticationDiagnostics {
+  bagFetchStatus: "loading" | "ready" | "fallback";
+  resolvedAuthEndpoint?: string;
+  pod?: string;
+  storefront?: string;
+  sapAssetReadiness: "not-required" | "loading" | "ready" | "failed";
+  wispConnection: WispConnectionState | "not-started";
+  lastAppleStatusCode?: number;
+  retryCount: number;
+  retryDelayMs?: number;
+  failureReason?: string;
+}
+
+export function createInitialAuthenticationDiagnostics(): AuthenticationDiagnostics {
+  return {
+    bagFetchStatus: "loading",
+    sapAssetReadiness: "not-required",
+    wispConnection: "not-started",
+    retryCount: 0,
+  };
+}
+
+function safeAuthEndpoint(host: string, path: string): string {
+  try {
+    const url = new URL(`https://${host}${path}`);
+    return `${url.origin}${url.pathname}`;
+  } catch {
+    return "unknown";
+  }
+}
 
 function isTransientAuthStatus(status: number): boolean {
   return (
@@ -80,18 +111,28 @@ export async function authenticate(
   code?: string,
   existingCookies?: Cookie[],
   deviceId: string = "",
+  onDiagnostics?: (diagnostics: AuthenticationDiagnostics) => void,
 ): Promise<Account> {
   const guid = deviceId.toUpperCase();
   let cookies: Cookie[] = existingCookies ? [...existingCookies] : [];
   let storeFront = "";
   let lastError: Error | null = null;
+  const diagnostics = createInitialAuthenticationDiagnostics();
+  const report = () => onDiagnostics?.({ ...diagnostics });
+  const setFailure = (reason: string) => {
+    diagnostics.failureReason = reason;
+    report();
+  };
 
   const defaultAuthEndpoint = new URL(defaultAuthURL);
   defaultAuthEndpoint.searchParams.set("guid", guid);
   let requestHost = defaultAuthEndpoint.hostname;
   let requestPath = `${defaultAuthEndpoint.pathname}${defaultAuthEndpoint.search}`;
 
-  const bag = await fetchBag(guid);
+  const bag = await fetchBag(guid, (status) => {
+    diagnostics.bagFetchStatus = status;
+    report();
+  });
   // fetchBag normalizes advertised URLs. Keep the fallback native endpoint's
   // established trailing slash while also handling callers that provide a
   // legacy bag URL directly.
@@ -103,6 +144,8 @@ export async function authenticate(
   authEndpoint.searchParams.set("guid", guid);
   requestHost = authEndpoint.hostname;
   requestPath = `${authEndpoint.pathname}${authEndpoint.search}`;
+  diagnostics.resolvedAuthEndpoint = safeAuthEndpoint(requestHost, requestPath);
+  report();
 
   // When the bag advertises the SAP signing protocol, every request to the
   // auth endpoint must carry X-Apple-ActionSignature over its body bytes.
@@ -110,13 +153,33 @@ export async function authenticate(
   // password — because signing happens here in the browser.
   let sapSigner: SapSigner | null = null;
   if (bag.sapEndpoints) {
-    const assets = await loadSapAssets();
-    sapSigner = await createSapSigner({
-      ...bag.sapEndpoints,
-      hardwareID: hardwareIdBytes(guid),
-      assets,
-    });
-
+    diagnostics.sapAssetReadiness = "loading";
+    report();
+    let assets;
+    try {
+      assets = await loadSapAssets();
+      diagnostics.sapAssetReadiness = "ready";
+      report();
+    } catch (error) {
+      diagnostics.sapAssetReadiness = "failed";
+      setFailure("sap-assets-unavailable");
+      throw error;
+    }
+    diagnostics.wispConnection = "initializing";
+    report();
+    try {
+      sapSigner = await createSapSigner({
+        ...bag.sapEndpoints,
+        hardwareID: hardwareIdBytes(guid),
+        assets,
+      });
+      diagnostics.wispConnection = "ready";
+      report();
+    } catch (error) {
+      diagnostics.wispConnection = "failed";
+      setFailure("sap-signing-unavailable");
+      throw error;
+    }
   }
 
   let currentAttempt = 0;
@@ -156,7 +219,18 @@ export async function authenticate(
         headers,
         body: plistBody,
         cookies,
+        onWispStateChange: (state) => {
+          diagnostics.wispConnection = state;
+          if (state === "failed") {
+            diagnostics.failureReason = "wisp-unavailable";
+          }
+          report();
+        },
       });
+
+      diagnostics.lastAppleStatusCode = response.status;
+      diagnostics.retryDelayMs = undefined;
+      report();
 
       cookies = extractAndMergeCookies(response.rawHeaders, cookies);
 
@@ -172,12 +246,19 @@ export async function authenticate(
       // Read pod
       const podHeader = response.headers["pod"];
       const pod = podHeader || undefined;
+      diagnostics.pod = pod;
+      diagnostics.storefront = storeFront || undefined;
+      report();
 
       if (
         isTransientAuthStatus(response.status) &&
         currentAttempt < MAX_AUTH_ATTEMPTS
       ) {
-        await waitForRetry(retryAfterDelay(response.headers, currentAttempt - 1));
+        const delayMs = retryAfterDelay(response.headers, currentAttempt - 1);
+        diagnostics.retryCount = currentAttempt;
+        diagnostics.retryDelayMs = delayMs;
+        report();
+        await waitForRetry(delayMs);
         continue;
       }
 
@@ -186,6 +267,7 @@ export async function authenticate(
       if ([301, 302, 303, 307, 308].includes(response.status)) {
         const location = response.headers["location"];
         if (!location) {
+          setFailure("redirect-location-missing");
           throw new Error(i18n.t("errors.auth.redirectLocation"));
         }
         const currentURL = new URL(`https://${requestHost}${requestPath}`);
@@ -199,14 +281,13 @@ export async function authenticate(
       }
 
       if (response.status < 200 || response.status >= 300) {
-        const preview = response.body.slice(0, 240).replace(/\s+/g, " ").trim();
-        throw new Error(
-          `Apple authentication returned HTTP ${response.status}: ${preview}`,
-        );
+        setFailure(`HTTP ${response.status}`);
+        throw new Error(`Apple authentication returned HTTP ${response.status}`);
       }
 
       // Handle non-plist responses (e.g. 204 with an empty body)
       if (!response.body.trim()) {
+        setFailure(`HTTP ${response.status} empty response`);
         throw new Error(
           `${i18n.t("errors.auth.emptyBody", { status: response.status })} ` +
             `(host=${requestHost}, sap=${sapSigner ? "enabled" : "disabled"})`,
@@ -221,6 +302,7 @@ export async function authenticate(
         !code &&
         dict.customerMessage === "MZFinance.BadLogin.Configurator_message"
       ) {
+        setFailure("two-factor-required");
         throw new AuthenticationError(
           i18n.t("errors.auth.requiresVerification"),
           true,
@@ -233,6 +315,7 @@ export async function authenticate(
 
       const accountInfo = dict.accountInfo as Record<string, any>;
       if (!accountInfo) {
+        setFailure("account-info-missing");
         throw new Error(
           failureMessage ?? i18n.t("errors.auth.missingAccountInfo"),
         );
@@ -240,6 +323,7 @@ export async function authenticate(
 
       const address = accountInfo.address as Record<string, any>;
       if (!address) {
+        setFailure("account-address-missing");
         throw new Error(failureMessage ?? i18n.t("errors.auth.missingAddress"));
       }
 
@@ -264,6 +348,9 @@ export async function authenticate(
       if (e instanceof AuthenticationError) {
         await sapSigner?.close().catch(() => undefined);
         throw e;
+      }
+      if (!diagnostics.failureReason) {
+        setFailure("authentication-failed");
       }
       lastError = e instanceof Error ? e : new Error(String(e));
     }

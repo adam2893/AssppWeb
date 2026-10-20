@@ -10,6 +10,8 @@ export interface BagOutput {
   sapEndpoints?: SapEndpoints;
 }
 
+export type BagFetchStatus = "loading" | "ready" | "fallback";
+
 export const defaultAuthURL =
   "https://auth.itunes.apple.com/auth/v1/native/fast";
 
@@ -55,7 +57,11 @@ export function normalizeAuthURL(rawURL: string): string {
 // Fetches the bag via the backend proxy.
 // The backend fetches it using Node.js native HTTPS.
 // The bag response is public data (Apple service URLs, no credentials).
-export async function fetchBag(deviceId: string): Promise<BagOutput> {
+export async function fetchBag(
+  deviceId: string,
+  onStatus?: (status: BagFetchStatus) => void,
+): Promise<BagOutput> {
+  onStatus?.("loading");
   try {
     const resp = await fetch(`/api/bag?guid=${encodeURIComponent(deviceId)}`, {
       headers: authHeaders(),
@@ -65,6 +71,7 @@ export async function fetchBag(deviceId: string): Promise<BagOutput> {
       console.warn(
         `[Bag] Proxy request failed, using default auth endpoint: ${err.error || `HTTP ${resp.status}`}`,
       );
+      onStatus?.("fallback");
       return { authURL: defaultAuthURL };
     }
 
@@ -99,9 +106,11 @@ export async function fetchBag(deviceId: string): Promise<BagOutput> {
       console.warn(
         "[Bag] authenticateAccount URL not found in bag, using default auth endpoint",
       );
+      onStatus?.("fallback");
       return { authURL: defaultAuthURL, updateURL, sapEndpoints };
     }
 
+    onStatus?.("ready");
     return { authURL: normalizeAuthURL(authURL), updateURL, sapEndpoints };
   } catch (error) {
     console.warn(
@@ -109,6 +118,7 @@ export async function fetchBag(deviceId: string): Promise<BagOutput> {
         error instanceof Error ? error.message : String(error)
       }`,
     );
+    onStatus?.("fallback");
     return { authURL: defaultAuthURL };
   }
 }

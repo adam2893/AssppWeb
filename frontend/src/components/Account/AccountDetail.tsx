@@ -3,9 +3,15 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import PageContainer from "../Layout/PageContainer";
 import Spinner from "../common/Spinner";
+import AuthDiagnostics from "./AuthDiagnostics";
 import { useAccounts } from "../../hooks/useAccounts";
 import { useToastStore } from "../../store/toast";
-import { authenticate, AuthenticationError } from "../../apple/authenticate";
+import {
+  authenticate,
+  AuthenticationError,
+  createInitialAuthenticationDiagnostics,
+  type AuthenticationDiagnostics,
+} from "../../apple/authenticate";
 import { getErrorMessage } from "../../utils/error";
 import { storeIdToCountry } from "../../apple/config";
 
@@ -26,6 +32,8 @@ export default function AccountDetail() {
   const [reauthing, setReauthing] = useState(false);
   const [reauthCode, setReauthCode] = useState("");
   const [needsCode, setNeedsCode] = useState(false);
+  const [diagnostics, setDiagnostics] =
+    useState<AuthenticationDiagnostics | null>(null);
 
   useEffect(() => {
     loadAccounts();
@@ -61,6 +69,7 @@ export default function AccountDetail() {
   async function handleReauth() {
     if (!account) return;
     setReauthing(true);
+    setDiagnostics(createInitialAuthenticationDiagnostics());
 
     try {
       const updated = await authenticate(
@@ -69,6 +78,7 @@ export default function AccountDetail() {
         needsCode && reauthCode ? reauthCode : undefined,
         account.cookies,
         account.deviceIdentifier,
+        setDiagnostics,
       );
       await updateAccount(updated);
       setNeedsCode(false);
@@ -169,6 +179,8 @@ export default function AccountDetail() {
             </div>
           </section>
         )}
+
+        {diagnostics && <AuthDiagnostics diagnostics={diagnostics} />}
 
         <div className="flex flex-wrap items-center gap-3">
           <button

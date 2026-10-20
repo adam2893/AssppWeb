@@ -119,10 +119,43 @@
       "signIn": "Sign In",
       "verify": "Verify",
       "cancel": "Cancel",
-      "authFailed": "Authentication failed",
-      "addSuccess": "Account added successfully."
+    "authFailed": "Authentication failed",
+    "addSuccess": "Account added successfully."
+  },
+  "authDiagnostics": {
+    "title": "Authentication diagnostics",
+    "bagFetchStatus": "Bag fetch status",
+    "resolvedAuthEndpoint": "Resolved auth endpoint",
+    "pod": "Pod",
+    "storefront": "Storefront",
+    "sapAssetReadiness": "SAP asset readiness",
+    "wispConnection": "Wisp connection state",
+    "lastAppleStatusCode": "Last Apple status code",
+    "retryCount": "Retry count",
+    "retryDelay": "Retry delay",
+    "delayValue": "{{milliseconds}} ms",
+    "failureReason": "Failure reason",
+    "values": {
+      "loading": "Loading",
+      "ready": "Ready",
+      "fallback": "Fallback endpoint",
+      "not-required": "Not required",
+      "initializing": "Initializing",
+      "failed": "Failed",
+      "not-started": "Not started"
     },
-    "detail": {
+    "failureReasons": {
+      "sap-assets-unavailable": "SAP assets unavailable",
+      "sap-signing-unavailable": "SAP signing unavailable",
+      "wisp-unavailable": "Wisp unavailable",
+      "redirect-location-missing": "Apple redirect missing location",
+      "two-factor-required": "Two-factor verification required",
+      "account-info-missing": "Apple account information missing",
+      "account-address-missing": "Apple account address missing",
+      "authentication-failed": "Authentication failed"
+    }
+  },
+  "detail": {
       "title": "Account Details",
       "notFound": "Account not found.",
       "back": "Back to accounts",
